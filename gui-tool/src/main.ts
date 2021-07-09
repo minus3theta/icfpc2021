@@ -28,3 +28,19 @@ export class Game extends Phaser.Game {
 }
 
 const game = new Game(config);
+
+// @ts-ignore
+document.getElementById('upload-button').addEventListener('change', function(event) {
+  const input = event.target;
+  // @ts-ignore
+  if (input.files.length === 0) return;
+  // @ts-ignore
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function() {
+    if (typeof reader.result === "string") {
+      game.scene.start('mainScene', { problemInfo: JSON.parse(reader.result) });
+    }
+  }
+  reader.readAsText(file);
+});

@@ -112,7 +112,7 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private problemInfo = {"hole":[[13,0],[11,2],[14,2],[14,4],[12,9],[12,4],[10,5],[10,10],[0,0]],"epsilon":0,"figure":{"edges":[[0,1],[1,2],[2,0]],"vertices":[[0,8],[6,0],[14,6]]}};
+  private problemInfo;
 
   private vertices;
   private edges;
@@ -123,8 +123,12 @@ export class MainScene extends Phaser.Scene {
   private draggingVertex;
   private processing = false;
 
-  create(): void {
+  create(data): void {
     this.drawLattice();
+
+    if (data.problemInfo === undefined) return;
+    this.problemInfo = data.problemInfo;
+
     this.initHole();
     this.initVerticesAndEdges();
     this.drawFigure();
