@@ -1,4 +1,5 @@
-import {width, height, convertCoord, grid_color, figure_color, hole_color} from './config'
+import {width, height, convertCoord, grid_color, figure_color, hole_color, figure_alert_color} from './config'
+import { dist } from './graph';
 import {Figure, Point, State} from './state'
 
 export function drawGrid(ctx: CanvasRenderingContext2D): void {
@@ -19,25 +20,30 @@ export function drawGrid(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-export function drawFigure(figure: Figure, ctx: CanvasRenderingContext2D): void {
+export function drawFigure(figure: Figure, epsilon: number, ctx: CanvasRenderingContext2D): void {
   ctx.strokeStyle = figure_color; 
   ctx.fillStyle = figure_color;
-  figure["vertices"].forEach(co => {
+  figure.vertices.forEach(co => {
     ctx.beginPath();
     const [x, y] = convertCoord(co[0]!, co[1]!);
     ctx.arc(x, y, 3, 0, Math.PI*2, false);
     ctx.fill();
   });
 
-  figure["edges"].forEach(e => {
-    const from = figure["vertices"][e[0]!]!;
-    const to = figure["vertices"][e[1]!]!;
+  figure.edges.forEach((e, i) => {
+    const from = figure.vertices[e[0]]!;
+    const to = figure.vertices[e[1]]!;
+    const d = dist(from, to);
+    if (Math.abs(d/figure.orig_len[i]! - 1) > (epsilon/1000000)) {
+      ctx.strokeStyle = figure_alert_color; 
+    }
     ctx.beginPath();
-    let [x, y] = convertCoord(from[0]!, from[1]!);
+    let [x, y] = convertCoord(from[0], from[1]);
     ctx.moveTo(x, y);
-    [x, y] = convertCoord(to[0]!, to[1]!);
+    [x, y] = convertCoord(to[0], to[1]);
     ctx.lineTo(x, y);
     ctx.stroke();
+    ctx.strokeStyle = figure_color; 
   });
 }
 
@@ -66,6 +72,6 @@ export function drawHole(hole: Point[], ctx: CanvasRenderingContext2D): void {
 export function updateState(state: State, ctx: CanvasRenderingContext2D): void {
   ctx.clearRect(0, 0, width, height);
   drawGrid(ctx);
-  drawHole(state["hole"], ctx);
-  drawFigure(state["figure"], ctx);
+  drawHole(state.hole, ctx);
+  drawFigure(state.figure, state.epsilon, ctx);
 }

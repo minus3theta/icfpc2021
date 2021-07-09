@@ -1,5 +1,5 @@
-import {width, height, convertCoord, grid_color, figure_color, hole_color} from './config';
-import {Figure, Point, State} from './state';
+import {width, height} from './config';
+import {Figure, Point, setOrigLen, State} from './state';
 import {updateState} from './drawState';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -23,10 +23,12 @@ let state: State = {
       [20,30],[20,40],[30,95],[40,15],[40,35],[40,65],[40,95],
       [45,5],[45,25],[50,15],[50,70],[55,5],[55,25],[60,15],
       [60,35],[60,65],[60,95],[70,95],[80,30],[80,40]
-    ]
+    ],
+    "orig_len": []
   }
 }
 
+setOrigLen(state);
 updateState(state, ctx);
 
 const state_text_area = document.getElementById("state") as HTMLTextAreaElement;
