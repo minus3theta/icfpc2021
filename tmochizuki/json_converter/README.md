@@ -1,4 +1,4 @@
-# How to use
+# How to use json to competitive programing format converter
 
 ## make excutable
 `cd tmochizuki/json_converter`
@@ -10,4 +10,4 @@
 
 ## convert json -> txt
 `cd tmochizuki/json_converter`
-`./main {input json file path} {ouput txt file path}`
+`./main < {input json file path} > {ouput txt file path}`
