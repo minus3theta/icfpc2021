@@ -139,6 +139,7 @@ export class MainScene extends Phaser.Scene {
     this.initVerticesAndEdges();
     this.drawFigure();
     this.drawHole();
+    this.displayDislikes();
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
@@ -309,10 +310,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   calcDislikes(): number {
-    if (!this.isValidAnswer()) {
-      return Infinity;
-    }
-
     let dislikes = 0;
     for (const holeVertex of this.holeVertices) {
       let minDist = Infinity;
@@ -327,11 +324,7 @@ export class MainScene extends Phaser.Scene {
   displayDislikes(): void {
     const elem = <HTMLSpanElement>document.getElementById('dislikes-text');
     const dislikes = this.calcDislikes();
-    if (isFinite(dislikes)) {
-      elem.innerText = String(dislikes);
-    } else {
-      elem.innerText = "-";
-    }
+    elem.innerText = String(dislikes);
   }
 
   saveAnswer(): void {
