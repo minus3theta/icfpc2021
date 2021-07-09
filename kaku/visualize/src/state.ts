@@ -14,10 +14,10 @@ export type State = {
   "figure": Figure
 }
 
-export function setOrigLen(state: State): void {
+export function setOrigLen(figure: Figure): void {
   const orig_len = [];
-  for (const e of state.figure.edges) {
-    orig_len.push(dist(state.figure.vertices[e[0]]!, state.figure.vertices[e[1]]!));
+  for (const e of figure.edges) {
+    orig_len.push(dist(figure.vertices[e[0]]!, figure.vertices[e[1]]!));
   }
-  state.figure.orig_len = orig_len;
+  figure.orig_len = orig_len;
 }
