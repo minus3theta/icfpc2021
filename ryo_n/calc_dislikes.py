@@ -57,10 +57,8 @@ def check_length(figure_edges, figure_vertices, sol_vertices, epsilon):
 
 
 def calculate_dislikes(sol_vertices, hole):
-    # score = 1000.0 * math.log2(len(figure_edges) * len(figure_vertices) * (len(hole) - 1))
-
     dislikes = 0
-    for h in hole[:-2]:
+    for h in hole[:-1]:
         mi = float("inf")
         for v in sol_vertices:
             ax = h[0]
