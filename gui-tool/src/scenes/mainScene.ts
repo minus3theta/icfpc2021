@@ -132,6 +132,7 @@ export class MainScene extends Phaser.Scene {
     this.filename = data.filename;
     this.problemInfo = data.problemInfo;
 
+    this.displayEpsilon();
     this.updateSaveButton();
 
     this.initHole();
@@ -378,5 +379,11 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newSaveButton.addEventListener('click', this.saveAnswer.bind(this));
+  }
+
+  displayEpsilon(): void {
+    const epsilonText = document.getElementById('epsilon-text');
+    // @ts-ignore
+    epsilonText.innerHTML = this.problemInfo.epsilon;
   }
 }
