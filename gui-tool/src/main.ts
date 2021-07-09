@@ -39,7 +39,7 @@ document.getElementById('upload-button').addEventListener('change', function(eve
   const reader = new FileReader();
   reader.onload = function() {
     if (typeof reader.result === "string") {
-      game.scene.start('mainScene', { problemInfo: JSON.parse(reader.result) });
+      game.scene.start('mainScene', { filename: file.name, problemInfo: JSON.parse(reader.result) });
     }
   }
   reader.readAsText(file);

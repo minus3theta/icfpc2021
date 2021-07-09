@@ -112,6 +112,7 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  private filename;
   private problemInfo;
 
   private vertices;
@@ -127,7 +128,10 @@ export class MainScene extends Phaser.Scene {
     this.drawLattice();
 
     if (data.problemInfo === undefined) return;
+    this.filename = data.filename;
     this.problemInfo = data.problemInfo;
+
+    this.updateSaveButton();
 
     this.initHole();
     this.initVerticesAndEdges();
@@ -148,6 +152,7 @@ export class MainScene extends Phaser.Scene {
           v.resetCircle();
           that.drawFigure();
           that.displayDislikes();
+          that.manageSaveButton();
           that.processing = false;
         }
       } else {
@@ -304,6 +309,58 @@ export class MainScene extends Phaser.Scene {
 
   displayDislikes(): void {
     const elem = <HTMLSpanElement>document.getElementById('dislikes-text');
-    elem.innerText = String(this.calcDislikes());
+    const dislikes = this.calcDislikes();
+    if (isFinite(dislikes)) {
+      elem.innerText = String(dislikes);
+    } else {
+      elem.innerText = "-";
+    }
+  }
+
+  saveAnswer(): void {
+    const answer = { vertices: [] };
+    for (const v of this.vertices) {
+      // @ts-ignore
+      answer.vertices.push([v.x, v.y]);
+    }
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(answer)], { type: 'text/json' }));
+    a.download = this.filename.substr(0, this.filename.indexOf('.')) + '_output.json';
+
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  manageSaveButton(): void {
+    const saveButton = document.getElementById('save-button');
+    if (this.isValidAnswer()) {
+      // @ts-ignore
+      saveButton.disabled = false;
+    } else {
+      // @ts-ignore
+      saveButton.disabled = true;
+    }
+  }
+
+  updateSaveButton(): void {
+    const saveButtonWrapper = document.getElementById('save-button-wrapper');
+    const saveButton = document.getElementById('save-button');
+
+    // @ts-ignore
+    saveButtonWrapper.removeChild(saveButton);
+
+    const newSaveButton = document.createElement('input');
+    newSaveButton.id = 'save-button';
+    newSaveButton.type = 'button';
+    newSaveButton.value = 'Save Answer';
+    newSaveButton.disabled = true;
+    // @ts-ignore
+    saveButtonWrapper.appendChild(newSaveButton);
+
+    // @ts-ignore
+    newSaveButton.addEventListener('click', this.saveAnswer.bind(this));
   }
 }
