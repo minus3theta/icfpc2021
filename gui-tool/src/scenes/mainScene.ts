@@ -70,18 +70,17 @@ class FigureEdge extends Edge {
     return dx*dx + dy*dy;
   }
 
+  isValidLength(): boolean {
+    const len = this.calcLength();
+    return this.minLength <= len && len <= this.maxLength;
+  }
+
   updateLineStyle(scene: Phaser.Scene): void {
     this.graphics.clear();
-
-    if (this.maxLength === this.minLength) {
-
-      return;
-    }
-
-    let width = 4;
-    let color;
-    let alpha = 1;
     const len = this.calcLength();
+    let width = 4;
+    let color = 0xFF00FF;
+    let alpha = 1;
     if (len < this.minLength) {
       width = 8;
       color = 0x0000FF;
@@ -91,9 +90,11 @@ class FigureEdge extends Edge {
       const rate = (len - this.minLength) / (this.baseLength - this.minLength);
       color += Math.floor(0xFF * rate) * 0x10000;
     } else if (len <= this.maxLength) {
-      color = 0xFF0000;
-      const rate = (len - this.baseLength) / (this.maxLength - this.baseLength);
-      color += 0xFF - Math.floor(0xFF * rate);
+      if (this.maxLength !== this.baseLength) {
+        color = 0xFF0000;
+        const rate = (len - this.baseLength) / (this.maxLength - this.baseLength);
+        color += 0xFF - Math.floor(0xFF * rate);
+      }
     } else {
       width = 8;
       color = 0xFF0000;
@@ -111,7 +112,7 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private problemInfo = {"hole":[[80,125],[70,155],[5,155],[5,80],[45,70],[5,60],[5,5],[75,5],[85,35],[95,5],[155,5],[155,60],[120,75],[155,80],[155,155],[90,155]],"epsilon":375000,"figure":{"edges":[[19,28],[28,26],[26,17],[17,16],[16,19],[19,21],[64,57],[57,52],[52,53],[53,67],[67,70],[70,57],[21,64],[64,77],[77,76],[76,63],[63,44],[44,40],[40,25],[25,13],[13,14],[14,15],[15,21],[15,12],[12,11],[11,14],[12,7],[7,5],[5,10],[10,8],[8,3],[3,1],[1,11],[8,11],[10,12],[13,6],[6,9],[9,2],[2,0],[0,4],[4,6],[25,24],[24,29],[29,23],[23,18],[18,24],[40,39],[39,43],[43,44],[43,46],[46,35],[35,34],[34,39],[63,65],[65,73],[73,71],[71,58],[58,65],[77,81],[81,89],[89,91],[91,93],[93,92],[92,89],[84,85],[85,88],[88,87],[87,84],[84,81],[81,78],[78,82],[82,81],[76,83],[83,90],[90,95],[95,94],[94,86],[86,80],[80,75],[75,79],[79,83],[83,86],[22,72],[72,74],[74,20],[20,22],[30,36],[36,37],[37,31],[31,30],[36,41],[41,42],[42,37],[41,49],[49,50],[50,42],[49,54],[54,55],[55,50],[54,61],[61,62],[62,55],[61,68],[68,69],[69,62],[31,20],[69,74],[38,33],[33,27],[27,32],[32,38],[38,45],[45,47],[47,51],[51,48],[48,45],[51,56],[56,60],[60,66],[66,59],[59,56],[66,72],[27,22],[48,49],[74,77],[20,14],[22,25],[72,63]],"vertices":[[1,93],[6,118],[8,103],[8,123],[9,80],[9,128],[13,86],[13,131],[17,119],[19,94],[20,121],[22,115],[25,118],[33,69],[37,98],[42,102],[46,145],[48,152],[54,12],[54,143],[56,92],[58,109],[60,55],[61,7],[61,18],[61,32],[64,152],[65,64],[67,143],[68,13],[69,74],[69,82],[71,71],[72,57],[74,24],[75,21],[75,74],[75,82],[77,65],[78,24],[78,33],[81,74],[81,82],[82,24],[82,34],[82,66],[85,23],[85,63],[85,70],[87,74],[87,82],[88,66],[89,147],[91,152],[93,74],[93,81],[94,65],[95,146],[98,14],[98,70],[99,59],[99,74],[99,80],[101,41],[102,108],[103,22],[103,65],[104,152],[105,74],[105,79],[105,144],[106,12],[111,58],[112,20],[114,87],[125,25],[125,70],[125,85],[129,105],[130,43],[133,26],[133,91],[133,105],[138,47],[138,98],[138,104],[140,43],[144,98],[144,104],[145,89],[148,48],[148,85],[149,92],[152,89],[154,33],[159,36]]}}
+  private problemInfo = {"hole":[[13,0],[11,2],[14,2],[14,4],[12,9],[12,4],[10,5],[10,10],[0,0]],"epsilon":0,"figure":{"edges":[[0,1],[1,2],[2,0]],"vertices":[[0,8],[6,0],[14,6]]}};
 
   private vertices;
   private edges;
@@ -124,10 +125,10 @@ export class MainScene extends Phaser.Scene {
 
   create(): void {
     this.drawLattice();
-    this.drawHole();
+    this.initHole();
     this.initVerticesAndEdges();
     this.drawFigure();
-    this.checkHoleIntersect();
+    this.drawHole();
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
@@ -139,9 +140,10 @@ export class MainScene extends Phaser.Scene {
           const v = that.draggingVertex;
           v.x = roundX;
           v.y = roundY;
-          that.checkHoleIntersect();
+          that.drawHole();
           v.resetCircle();
           that.drawFigure();
+          that.displayDislikes();
           that.processing = false;
         }
       } else {
@@ -169,9 +171,6 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerup', function(pointer) {
       that.dragging = false;
     })
-  }
-
-  update(): void {
   }
 
   initVerticesAndEdges(): void {
@@ -204,7 +203,7 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  drawHole(): void {
+  initHole(): void {
     const hole = this.problemInfo.hole;
 
     this.holeVertices = [];
@@ -227,7 +226,7 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  checkHoleIntersect(): void {
+  drawHole(): void {
     for (const holeEdge of this.holeEdges) {
       let intersect = false;
       for (const figureEdge of this.edges) {
@@ -245,6 +244,22 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  isValidAnswer(): boolean {
+    for (const holeEdge of this.holeEdges) {
+      for (const figureEdge of this.edges) {
+        if (this.isIntersect(holeEdge, figureEdge)) {
+          return false;
+        }
+      }
+    }
+    for (const edge of this.edges) {
+      if (!edge.isValidLength()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   isIntersect(e1: Edge, e2: Edge): boolean {
     const x1 = e1.v[0].x;
     const y1 = e1.v[0].y;
@@ -259,5 +274,32 @@ export class MainScene extends Phaser.Scene {
     const tc = (x1-x2)*(y3-y1)+(y1-y2)*(x1-x3);
     const td = (x1-x2)*(y4-y1)+(y1-y2)*(x1-x4);
     return ta * tb < 0 && tc * td < 0;
+  }
+
+  calcDistance(v1: Vertex, v2: Vertex): number {
+    const dx = v1.x - v2.x;
+    const dy = v1.y - v2.y;
+    return dx*dx + dy*dy;
+  }
+
+  calcDislikes(): number {
+    if (!this.isValidAnswer()) {
+      return Infinity;
+    }
+
+    let dislikes = 0;
+    for (const holeVertex of this.holeVertices) {
+      let minDist = Infinity;
+      for (const figureVertex of this.vertices) {
+        minDist = Math.min(minDist, this.calcDistance(holeVertex, figureVertex));
+      }
+      dislikes += minDist;
+    }
+    return dislikes;
+  }
+
+  displayDislikes(): void {
+    const elem = <HTMLSpanElement>document.getElementById('dislikes-text');
+    elem.innerText = String(this.calcDislikes());
   }
 }
