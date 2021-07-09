@@ -19,7 +19,7 @@ services:
         build: ./api
         container_name: api
         ports:
-            - 1323:1323
+            - 80:1323
         environment: 
             DATABASE_URL: "postgres://root:root@postgres:5432/root"
         volumes:
