@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
@@ -12,8 +13,17 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+type Vertex = []int
 type Solution struct {
-	Vertices [][]int `json:"vertices" form:"vertices"`
+	Vertices []Vertex `json:"vertices" form:"vertices"`
+}
+
+type UserSolution struct {
+	Id         int       `json:"id" db:"id"`
+	Problem_id int       `json:"problem_id" db:"problem_id"`
+	User_name  string    `json:"user_name" db:"user_name"`
+	Solution   Solution  `json:"solution" db:"solution"`
+	Created_at time.Time `json:"created_at" db:"created_at"`
 }
 
 var db *pgx.Conn
@@ -36,16 +46,37 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println(db)
+
 	defer db.Close(context.Background())
 
 	e.POST("/api/problems/:id/solutions/:user_name", postSolutions)
+	e.GET("/api/solutions", getSolutions)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
 // Handler
+func getSolutions(c echo.Context) error {
+	sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions"
+
+	rows, err := db.Query(context.Background(), sql)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	uss := []UserSolution{}
+	for rows.Next() {
+		var us UserSolution
+		err = rows.Scan(&us.Id, &us.Problem_id, &us.User_name, &us.Solution, &us.Created_at)
+
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err)
+		}
+		uss = append(uss, us)
+	}
+
+	return c.JSON(http.StatusOK, uss)
+}
 func postSolutions(c echo.Context) error {
 	s := new(Solution)
 	id := c.Param("id")
@@ -61,7 +92,7 @@ func postSolutions(c echo.Context) error {
 	// ss := string(bytes)
 
 	sql := `
-	INSERT INTO submissions(problem_id, user_name, submission, created_at)
+	INSERT INTO solutions(problem_id, user_name, solution, created_at)
 	VALUES ($1, $2, $3, current_timestamp)`
 	// fmt.Println(db)
 	tx, err := db.Begin(context.Background())
