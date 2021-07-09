@@ -1,0 +1,16 @@
+version: "3.3"
+services: 
+    postgres:
+        image: postgres:13
+        container_name: postgres
+        ports: 
+            - 5432:5432
+        environment: 
+            POSTGRES_USER: root
+            POSTGRES_PASSWORD: root
+            POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+            POSTGRES_DB: "root"
+        volumes: 
+            - ./postgres/postgres_data:/var/lib/postgresql/data
+            - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+        restart: always
