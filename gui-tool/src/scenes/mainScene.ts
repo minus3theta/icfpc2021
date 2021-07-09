@@ -1,5 +1,6 @@
 import {canvasSize} from "../main";
 
+const geta = 2;
 let displayRate = 5;
 
 class Vertex {
@@ -132,6 +133,7 @@ export class MainScene extends Phaser.Scene {
     this.filename = data.filename;
     this.problemInfo = data.problemInfo;
 
+    this.applyGeta();
     this.displayEpsilon();
     this.updateSaveButton();
 
@@ -183,6 +185,17 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerup', function(pointer) {
       that.dragging = false;
     })
+  }
+
+  applyGeta(): void {
+    for (const e of this.problemInfo.hole) {
+      e[0] += geta;
+      e[1] += geta;
+    }
+    for (const e of this.problemInfo.figure.vertices) {
+      e[0] += geta;
+      e[1] += geta;
+    }
   }
 
   initVerticesAndEdges(): void {
@@ -331,7 +344,7 @@ export class MainScene extends Phaser.Scene {
     const answer = { vertices: [] };
     for (const v of this.vertices) {
       // @ts-ignore
-      answer.vertices.push([v.x, v.y]);
+      answer.vertices.push([v.x - geta, v.y - geta]);
     }
 
     const a = document.createElement('a');
