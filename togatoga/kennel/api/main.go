@@ -31,7 +31,7 @@ func main() {
 	// Routes
 	//"postgres://root:root@localhost:5432/root"
 	var err error
-	db, err = pgx.Connect(context.Background(), "postgres://root:root@localhost:5432/root")
+	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
