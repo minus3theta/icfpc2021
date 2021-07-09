@@ -1,6 +1,6 @@
 import {canvasSize} from "../main";
 
-const displayRate = 5;
+let displayRate = 5;
 
 class Vertex {
   public x;
@@ -125,6 +125,7 @@ export class MainScene extends Phaser.Scene {
   private processing = false;
 
   create(data): void {
+    this.initDisplayRate(data.problemInfo);
     this.drawLattice();
 
     if (data.problemInfo === undefined) return;
@@ -210,6 +211,21 @@ export class MainScene extends Phaser.Scene {
       latticeGraphics.strokeLineShape(line1);
       latticeGraphics.strokeLineShape(line2);
     }
+  }
+
+  initDisplayRate(problemInfo): void {
+    if (problemInfo === undefined) return;
+
+    let maxValue = 0;
+    for (const v of problemInfo.hole) {
+      maxValue = Math.max(maxValue, v[0]);
+      maxValue = Math.max(maxValue, v[1]);
+    }
+    for (const v of problemInfo.figure.vertices) {
+      maxValue = Math.max(maxValue, v[0]);
+      maxValue = Math.max(maxValue, v[1]);
+    }
+    displayRate = canvasSize / (maxValue + 5);
   }
 
   initHole(): void {
