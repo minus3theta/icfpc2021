@@ -1,20 +1,22 @@
-import {width, height, convertCoord, grid_color, figure_color, hole_color, figure_alert_color} from './config'
+import {width, height, convertCoord, grid_color, figure_color, hole_color, figure_alert_color, grid_row, grid_col} from './config'
 import { dist } from './graph';
 import {Figure, Point, State} from './state'
 
 export function drawGrid(ctx: CanvasRenderingContext2D): void {
   ctx.strokeStyle = grid_color; 
-  for (let i = 0; i <= 100; i++) {
+  for (let i = 0; i <= grid_row; i++) {
     ctx.beginPath();
     let [x, y] = convertCoord(0, i);
     ctx.moveTo(x, y);
-    [x, y] = convertCoord(100, i);
+    [x, y] = convertCoord(grid_col, i);
     ctx.lineTo(x, y);
     ctx.stroke();
+  }
+  for (let i = 0; i <= grid_col; i++) {
     ctx.beginPath();
-    [x, y] = convertCoord(i, 0);
+    let [x, y] = convertCoord(i, 0);
     ctx.moveTo(x, y);
-    [x, y] = convertCoord(i, 100);
+    [x, y] = convertCoord(i, grid_row);
     ctx.lineTo(x, y);
     ctx.stroke();
   }

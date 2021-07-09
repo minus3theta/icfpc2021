@@ -1,13 +1,15 @@
 
-const rate = 10;
+const rate = 8;
 const pad = 100;
+export const grid_col = 160;
+export const grid_row = 160;
 
 export function convertCoord(x: number, y: number): [number, number] {
   return [x*rate+pad, y*rate+pad];
 }
 
-export const width = 100 * rate + pad;
-export const height = 100 * rate + pad;
+export const width = grid_col * rate + pad * 2;
+export const height = grid_row * rate + pad * 2;
 
 export const grid_color = 'rgb(100,100,100,0.5)';
 export const figure_color = 'rgb(00,00,255)';
