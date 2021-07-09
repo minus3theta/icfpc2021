@@ -50,7 +50,7 @@ def check_length(figure_edges, figure_vertices, sol_vertices, epsilon):
 
         d_cd = calc_distance(cx, cy, dx, dy)
 
-        if abs((d_cd / d_ab) - 1) > (epsilon / 1000000):
+        if abs((d_ab / d_cd) - 1) > (epsilon / 1e6):
             return False
 
     return True
