@@ -28,3 +28,12 @@ let state: State = {
 }
 
 updateState(state, ctx);
+
+const state_text_area = document.getElementById("state") as HTMLTextAreaElement;
+const update_button = document.getElementById("update") as HTMLButtonElement;
+
+state_text_area.value = JSON.stringify(state, null, 4);
+update_button.addEventListener('click', (_ev: MouseEvent) => {
+  state = JSON.parse(state_text_area.value) as State;
+  updateState(state, ctx);
+});
