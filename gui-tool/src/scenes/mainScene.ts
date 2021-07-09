@@ -2,7 +2,7 @@ import {canvasSize} from "../main";
 
 const displayRate = 5;
 
-class Vertice {
+class Vertex {
   public x;
   public y;
   public edges;
@@ -29,7 +29,7 @@ class Edge {
   public v;
   public graphics;
 
-  constructor(v1: Vertice, v2: Vertice) {
+  constructor(v1: Vertex, v2: Vertex) {
     this.v = [v1, v2];
   }
 
@@ -44,7 +44,7 @@ class Edge {
 }
 
 class HoleEdge extends Edge {
-  constructor(v1: Vertice, v2: Vertice, scene: Phaser.Scene) {
+  constructor(v1: Vertex, v2: Vertex, scene: Phaser.Scene) {
     super(v1, v2);
     this.graphics = scene.add.graphics({ lineStyle: { width: 2, color: 0x000000 }});
     this.draw();
@@ -56,7 +56,7 @@ class FigureEdge extends Edge {
   public minLength;
   public maxLength;
 
-  constructor(v1: Vertice, v2: Vertice, epsilon: number, scene: Phaser.Scene) {
+  constructor(v1: Vertex, v2: Vertex, epsilon: number, scene: Phaser.Scene) {
     super(v1, v2);
     this.baseLength = this.calcLength();
     this.graphics = scene.add.graphics({ lineStyle: { width: 4, color: 0xff0000 } })
@@ -119,7 +119,7 @@ export class MainScene extends Phaser.Scene {
   private holeEdges;
 
   private dragging = false;
-  private draggingVertice;
+  private draggingVertex;
   private processing = false;
 
   create(): void {
@@ -136,7 +136,7 @@ export class MainScene extends Phaser.Scene {
           that.processing = true;
           const roundX = Math.round(pointer.x / displayRate);
           const roundY = Math.round(pointer.y / displayRate);
-          const v = that.draggingVertice;
+          const v = that.draggingVertex;
           v.x = roundX;
           v.y = roundY;
           that.checkHoleIntersect();
@@ -160,7 +160,7 @@ export class MainScene extends Phaser.Scene {
       for (const v of that.vertices) {
         if (v.circle.contains(pointer.x, pointer.y)) {
           that.dragging = true;
-          that.draggingVertice = v;
+          that.draggingVertex = v;
           break;
         }
       }
@@ -180,9 +180,9 @@ export class MainScene extends Phaser.Scene {
 
     this.vertices = [];
     for (let i = 0; i < origVertices.length; i++) {
-      this.vertices.push(new Vertice(origVertices[i][0],
-                                     origVertices[i][1],
-                                     this));
+      this.vertices.push(new Vertex(origVertices[i][0],
+                                    origVertices[i][1],
+                                    this));
     }
 
     this.edges = [];
@@ -209,7 +209,7 @@ export class MainScene extends Phaser.Scene {
 
     this.holeVertices = [];
     for (let i = 0; i < hole.length; i++) {
-      this.holeVertices.push(new Vertice(hole[i][0], hole[i][1], this));
+      this.holeVertices.push(new Vertex(hole[i][0], hole[i][1], this));
     }
 
     this.holeEdges = [];
