@@ -14,3 +14,12 @@ services:
             - ./postgres/postgres_data:/var/lib/postgresql/data
             - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
         restart: always
+    api:
+        build: ./api
+        container_name: api
+        ports:
+            - 1323:1323
+        environment: 
+            DATABASE_URL: "postgres://root:root@postgres:5432/root"
+        volumes:
+            - ./api:/go/src/app
