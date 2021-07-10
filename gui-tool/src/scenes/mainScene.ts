@@ -13,6 +13,7 @@ export class Vertex {
   public circle;
   public graphics;
   public id;
+  public textElem;
 
   constructor(x: number, y: number, scene: Phaser.Scene, id: number) {
     this.x = x;
@@ -24,6 +25,16 @@ export class Vertex {
     this.edges = [];
 
     this.resetCircle();
+
+    this.textElem = document.createElement('span');
+    this.textElem.style.position = 'absolute';
+    this.textElem.style.left = String(this.x * displayRate) + 'px';
+    this.textElem.style.top = String(this.y * displayRate) + 'px';
+    this.textElem.style['pointer-events'] = 'none';
+    this.textElem.innerHTML = String(this.id);
+
+    // @ts-ignore
+    document.getElementById('absolute-text-wrapper').appendChild(this.textElem);
   }
 
   resetCircle(): void {
@@ -32,6 +43,11 @@ export class Vertex {
     this.y = Math.max(Math.min(this.y, maxValue + geta), 0);
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
+
+    if (this.textElem) {
+      this.textElem.style.left = String(this.x * displayRate) + 'px';
+      this.textElem.style.top = String(this.y * displayRate) + 'px';
+    }
   }
 
   activateCircle(): void {
@@ -113,7 +129,7 @@ export class FigureEdge extends Edge {
     this.textElem.innerHTML = 'hoge';
 
     // @ts-ignore
-    document.getElementById('stretch-rate-wrapper').appendChild(this.textElem);
+    document.getElementById('absolute-text-wrapper').appendChild(this.textElem);
   }
 
   draw(): void {
@@ -198,6 +214,7 @@ export class MainScene extends Phaser.Scene {
   private processing = false;
 
   create(data): void {
+    this.cleanAbsoluteTextWrapper();
     this.initDisplayRate(data.problemInfo);
     this.drawLattice();
 
@@ -209,6 +226,7 @@ export class MainScene extends Phaser.Scene {
     this.displayEpsilon();
     this.updateSaveButton();
     this.updateUndoButton();
+    this.updateDisplayIdCheckbox();
     this.manageUndoButton();
     this.optimizeButton();
 
@@ -217,6 +235,7 @@ export class MainScene extends Phaser.Scene {
     this.drawFigure();
     this.drawHole();
     this.displayDislikes();
+    this.manageDisplayId();
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
@@ -517,6 +536,25 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  manageDisplayId(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
+    if (checkbox.checked) {
+      for (const v of this.vertices) {
+        v.textElem.innerText = String(v.id);
+      }
+      for (const v of this.holeVertices) {
+        v.textElem.innerText = String(v.id);
+      }
+    } else {
+      for (const v of this.vertices) {
+        v.textElem.innerText = '';
+      }
+      for (const v of this.holeVertices) {
+        v.textElem.innerText = '';
+      }
+    }
+  }
+
   updateSaveButton(): void {
     const saveButtonWrapper = document.getElementById('save-button-wrapper');
     const saveButton = document.getElementById('save-button');
@@ -551,7 +589,36 @@ export class MainScene extends Phaser.Scene {
     undoButtonWrapper.appendChild(newUndoButton);
 
     // @ts-ignore
+    undoButtonWrapper.appendChild(newUndoButton);
+
+    // @ts-ignore
     newUndoButton.addEventListener('click', this.undo.bind(this));
+  }
+
+  updateDisplayIdCheckbox(): void {
+    const displayIdCheckboxWrapper = document.getElementById('display-id-checkbox-wrapper');
+    const displayIdCheckbox = document.getElementById('display-id-checkbox');
+    const displayIdLabel = document.getElementById('display-id-label');
+
+    // @ts-ignore
+    displayIdCheckboxWrapper.removeChild(displayIdCheckbox);
+    // @ts-ignore
+    displayIdCheckboxWrapper.removeChild(displayIdLabel);
+
+    const newDisplayIdCheckbox = document.createElement('input');
+    newDisplayIdCheckbox.id = 'display-id-checkbox';
+    newDisplayIdCheckbox.type = 'checkbox';
+    // @ts-ignore
+    displayIdCheckboxWrapper.appendChild(newDisplayIdCheckbox);
+
+    const newDisplayIdLabel = document.createElement('label');
+    newDisplayIdLabel.id = 'display-id-label';
+    newDisplayIdLabel.innerText = 'Display vertex id';
+    // @ts-ignore
+    displayIdCheckboxWrapper.appendChild(newDisplayIdLabel);
+
+    // @ts-ignore
+    newDisplayIdCheckbox.addEventListener('change', this.manageDisplayId.bind(this));
   }
 
   optimizeButton(): void {
@@ -583,5 +650,13 @@ export class MainScene extends Phaser.Scene {
     xText.innerHTML = String(x - geta);
     // @ts-ignore
     yText.innerHTML = String(y - geta);
+  }
+
+  cleanAbsoluteTextWrapper(): void {
+    const wrapper = <HTMLElement>document.getElementById('absolute-text-wrapper');
+    while (wrapper.hasChildNodes()) {
+      // @ts-ignore
+      wrapper.removeChild(wrapper.childNodes[0]);
+    }
   }
 }
