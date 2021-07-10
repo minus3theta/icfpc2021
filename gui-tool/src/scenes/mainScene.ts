@@ -1,30 +1,53 @@
 import {canvasSize} from "../main";
+import { baneOptimize } from "./kaku";
 
 const geta = 2;
 let displayRate = 5;
+let maxValue = 0;
 let displayStretchRateFlag = false;
 
-class Vertex {
+export class Vertex {
   public x;
   public y;
   public edges;
   public circle;
   public graphics;
+  public id;
+  public textElem;
 
-  constructor(x: number, y: number, scene: Phaser.Scene) {
+  constructor(x: number, y: number, scene: Phaser.Scene, id: number) {
     this.x = x;
     this.y = y;
+    this.id = id;
+    this.edges = [];
     this.graphics = scene.add.graphics({ fillStyle: { color: 0x00ff00 } })
     this.graphics.setAlpha(0);
     this.edges = [];
 
     this.resetCircle();
+
+    this.textElem = document.createElement('span');
+    this.textElem.style.position = 'absolute';
+    this.textElem.style.left = String(this.x * displayRate) + 'px';
+    this.textElem.style.top = String(this.y * displayRate) + 'px';
+    this.textElem.style['pointer-events'] = 'none';
+    this.textElem.innerHTML = String(this.id);
+
+    // @ts-ignore
+    document.getElementById('absolute-text-wrapper').appendChild(this.textElem);
   }
 
   resetCircle(): void {
     this.graphics.clear();
+    this.x = Math.max(Math.min(this.x, maxValue + geta), 0);
+    this.y = Math.max(Math.min(this.y, maxValue + geta), 0);
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
+
+    if (this.textElem) {
+      this.textElem.style.left = String(this.x * displayRate) + 'px';
+      this.textElem.style.top = String(this.y * displayRate) + 'px';
+    }
   }
 
   activateCircle(): void {
@@ -37,41 +60,60 @@ class Vertex {
   deactivateCircle(): void {
     this.graphics.setAlpha(0);
   }
+
+  drawConnectedEdges(): void {
+    for (const e of this.edges) {
+      e.updateLineStyle();
+      e.draw();
+    }
+  }
 }
 
 class Edge {
   public v;
   public graphics;
+  public line;
 
   constructor(v1: Vertex, v2: Vertex) {
     this.v = [v1, v2];
   }
 
+  calcLength(): number {
+    const dx = this.v[0].x - this.v[1].x;
+    const dy = this.v[0].y - this.v[1].y;
+    return dx*dx + dy*dy;
+  }
+
+  updateLine(): void {
+    this.line = new Phaser.Geom.Line(this.v[0].x * displayRate,
+                                     this.v[0].y * displayRate,
+                                     this.v[1].x * displayRate,
+                                     this.v[1].y * displayRate);
+  }
+
   draw(): void {
     this.graphics.clear();
-    const line = new Phaser.Geom.Line(this.v[0].x * displayRate,
-                                      this.v[0].y * displayRate,
-                                      this.v[1].x * displayRate,
-                                      this.v[1].y * displayRate);
-    this.graphics.strokeLineShape(line);
+    this.graphics.strokeLineShape(this.line);
   }
 }
 
 class HoleEdge extends Edge {
   constructor(v1: Vertex, v2: Vertex, scene: Phaser.Scene) {
     super(v1, v2);
+    this.updateLine();
     this.graphics = scene.add.graphics({ lineStyle: { width: 2, color: 0x000000 }});
     this.draw();
   }
 }
 
-class FigureEdge extends Edge {
+export class FigureEdge extends Edge {
   public baseLength;
   public minLength;
   public maxLength;
   public textElem;
   public scene;
   public drawRateFlag = false;
+  public drawLength = 0;
 
   constructor(v1: Vertex, v2: Vertex, epsilon: number, scene: Phaser.Scene) {
     super(v1, v2);
@@ -83,40 +125,34 @@ class FigureEdge extends Edge {
 
     this.textElem = document.createElement('span');
     this.textElem.style.position = 'absolute';
+    this.textElem.style['pointer-events'] = 'none';
     this.textElem.innerHTML = 'hoge';
 
     // @ts-ignore
-    document.getElementById('stretch-rate-wrapper').appendChild(this.textElem);
+    document.getElementById('absolute-text-wrapper').appendChild(this.textElem);
   }
 
   draw(): void {
     super.draw();
 
-    if (this.drawRateFlag) {
-      this.textElem.innerText = String(this.calcStretchRate());
+    if (this.drawRateFlag || this.drawLength > 0) {
+      const len = this.drawRateFlag ? this.calcLength() : this.drawLength;
+      this.textElem.innerText = String(this.calcStretchRate(len));
       this.textElem.style.left = (String)((this.v[0].x + this.v[1].x) / 2 * displayRate) + 'px';
       this.textElem.style.top = (String)((this.v[0].y + this.v[1].y) / 2 * displayRate) + 'px';
-      const len = this.calcLength();
       if (len < this.minLength || this.maxLength < len) {
-        this.textElem.style.color = '#CC0000';
-        this.textElem.style.fontWeight = 'bold';
+        this.textElem.style.color = this.drawRateFlag ? '#CC0000' : '';
+        this.textElem.style.fontWeight = this.drawRateFlag ? 'bold' : '';
       } else {
-        this.textElem.style.color = '';
-        this.textElem.style.fontWeight = '';
+        this.textElem.style.color = this.drawRateFlag ? '' : '#00CC00';
+        this.textElem.style.fontWeight = this.drawRateFlag ? '' : 'bold';
       }
     } else {
       this.textElem.innerText = '';
     }
   }
 
-  calcLength(): number {
-    const dx = this.v[0].x - this.v[1].x;
-    const dy = this.v[0].y - this.v[1].y;
-    return dx*dx + dy*dy;
-  }
-
-  calcStretchRate(): number {
-    const len = this.calcLength();
+  calcStretchRate(len: number): number {
     return Math.floor(len / this.baseLength * 100) / 100;
   }
 
@@ -125,8 +161,8 @@ class FigureEdge extends Edge {
     return this.minLength <= len && len <= this.maxLength;
   }
 
-  updateLineStyle(scene: Phaser.Scene): void {
-    this.graphics.clear();
+  updateLineStyle(): void {
+    this.graphics.destroy();
     const len = this.calcLength();
     let width = 4;
     let color = 0xFF00FF;
@@ -151,7 +187,8 @@ class FigureEdge extends Edge {
       alpha = 0.6;
     }
 
-    this.graphics = scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.graphics = this.scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.updateLine();
   }
 }
 
@@ -170,11 +207,14 @@ export class MainScene extends Phaser.Scene {
   private holeVertices;
   private holeEdges;
 
+  private history = [];
+
   private dragging = false;
   private draggingVertex;
   private processing = false;
 
   create(data): void {
+    this.cleanAbsoluteTextWrapper();
     this.initDisplayRate(data.problemInfo);
     this.drawLattice();
 
@@ -185,26 +225,33 @@ export class MainScene extends Phaser.Scene {
     this.applyGeta();
     this.displayEpsilon();
     this.updateSaveButton();
+    this.updateUndoButton();
+    this.updateDisplayIdCheckbox();
+    this.manageUndoButton();
+    this.optimizeButton();
 
     this.initHole();
     this.initVerticesAndEdges();
     this.drawFigure();
     this.drawHole();
     this.displayDislikes();
+    this.manageDisplayId();
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
+      const roundX = Math.round(pointer.x / displayRate);
+      const roundY = Math.round(pointer.y / displayRate);
+      that.displayPosition(roundX, roundY);
+
       if (that.dragging) {
         if (!that.processing) {
           that.processing = true;
-          const roundX = Math.round(pointer.x / displayRate);
-          const roundY = Math.round(pointer.y / displayRate);
           const v = that.draggingVertex;
           v.x = roundX;
           v.y = roundY;
           that.drawHole();
           v.resetCircle();
-          that.drawFigure();
+          v.drawConnectedEdges();
           that.displayDislikes();
           that.manageSaveButton();
           that.processing = false;
@@ -212,12 +259,26 @@ export class MainScene extends Phaser.Scene {
       } else {
         for (const e of that.edges) {
           e.drawRateFlag = false;
+          e.drawLength = 0;
         }
+        let hit = false;
         for (const v of that.vertices) {
           if (v.circle.contains(pointer.x, pointer.y)) {
             v.activateCircle();
+            hit = true;
           } else {
             v.deactivateCircle();
+          }
+        }
+        if (!hit) {
+          for (const e of that.holeEdges) {
+            if (Phaser.Geom.Intersects.PointToLine(pointer, e.line, 5)) {
+              const len = e.calcLength();
+              for (const e2 of that.edges) {
+                e2.drawLength = len;
+              }
+              break;
+            }
           }
         }
         that.drawFigure();
@@ -230,6 +291,7 @@ export class MainScene extends Phaser.Scene {
         if (v.circle.contains(pointer.x, pointer.y)) {
           that.dragging = true;
           that.draggingVertex = v;
+          that.pushHistory();
           break;
         }
       }
@@ -237,7 +299,7 @@ export class MainScene extends Phaser.Scene {
 
     this.input.on('pointerup', function(pointer) {
       that.dragging = false;
-    })
+    });
   }
 
   applyGeta(): void {
@@ -259,7 +321,7 @@ export class MainScene extends Phaser.Scene {
     for (let i = 0; i < origVertices.length; i++) {
       this.vertices.push(new Vertex(origVertices[i][0],
                                     origVertices[i][1],
-                                    this));
+                                    this, i));
     }
 
     this.edges = [];
@@ -287,7 +349,7 @@ export class MainScene extends Phaser.Scene {
   initDisplayRate(problemInfo): void {
     if (problemInfo === undefined) return;
 
-    let maxValue = 0;
+    maxValue = 0;
     for (const v of problemInfo.hole) {
       maxValue = Math.max(maxValue, v[0]);
       maxValue = Math.max(maxValue, v[1]);
@@ -296,7 +358,7 @@ export class MainScene extends Phaser.Scene {
       maxValue = Math.max(maxValue, v[0]);
       maxValue = Math.max(maxValue, v[1]);
     }
-    displayRate = canvasSize / (maxValue + 5);
+    displayRate = canvasSize / (maxValue + geta * 2);
   }
 
   initHole(): void {
@@ -304,7 +366,7 @@ export class MainScene extends Phaser.Scene {
 
     this.holeVertices = [];
     for (let i = 0; i < hole.length; i++) {
-      this.holeVertices.push(new Vertex(hole[i][0], hole[i][1], this));
+      this.holeVertices.push(new Vertex(hole[i][0], hole[i][1], this, i));
     }
 
     this.holeEdges = [];
@@ -317,7 +379,7 @@ export class MainScene extends Phaser.Scene {
 
   drawFigure(): void {
     for (const edge of this.edges) {
-      edge.updateLineStyle(this);
+      edge.updateLineStyle();
       edge.draw();
     }
   }
@@ -414,6 +476,44 @@ export class MainScene extends Phaser.Scene {
     document.body.removeChild(a);
   }
 
+  optimize(): void {
+    this.pushHistory();
+    baneOptimize(this.vertices, this.edges, this.draggingVertex);
+    this.drawFigure();
+    this.manageSaveButton();
+  }
+
+  pushHistory(): void {
+    const arr = [];
+    for (let i = 0; i < this.vertices.length; i++) {
+      // @ts-ignore
+      arr.push([this.vertices[i].x, this.vertices[i].y]);
+    }
+    // @ts-ignore
+    this.history.push(arr);
+
+    if (this.history.length > 30) {
+      this.history.shift();
+    }
+    this.manageUndoButton();
+  }
+
+  undo(): void {
+    const arr = this.history.pop();
+    if (!arr) return;
+    for (let i = 0; i < this.vertices.length; i++) {
+      this.vertices[i].x = arr[i][0];
+      this.vertices[i].y = arr[i][1];
+    }
+    this.drawFigure();
+    for (const v of this.vertices) {
+      v.resetCircle();
+    }
+    this.drawHole();
+    this.displayDislikes();
+    this.manageUndoButton();
+  }
+
   manageSaveButton(): void {
     const saveButton = document.getElementById('save-button');
     if (this.isValidAnswer()) {
@@ -422,6 +522,36 @@ export class MainScene extends Phaser.Scene {
     } else {
       // @ts-ignore
       saveButton.disabled = true;
+    }
+  }
+
+  manageUndoButton(): void {
+    const undoButton = document.getElementById('undo-button');
+    if (this.history.length) {
+      // @ts-ignore
+      undoButton.disabled = false;
+    } else {
+      // @ts-ignore
+      undoButton.disabled = true;
+    }
+  }
+
+  manageDisplayId(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
+    if (checkbox.checked) {
+      for (const v of this.vertices) {
+        v.textElem.innerText = String(v.id);
+      }
+      for (const v of this.holeVertices) {
+        v.textElem.innerText = String(v.id);
+      }
+    } else {
+      for (const v of this.vertices) {
+        v.textElem.innerText = '';
+      }
+      for (const v of this.holeVertices) {
+        v.textElem.innerText = '';
+      }
     }
   }
 
@@ -444,9 +574,89 @@ export class MainScene extends Phaser.Scene {
     newSaveButton.addEventListener('click', this.saveAnswer.bind(this));
   }
 
+  updateUndoButton(): void {
+    const undoButtonWrapper = document.getElementById('undo-button-wrapper');
+    const undoButton = document.getElementById('undo-button');
+
+    // @ts-ignore
+    undoButtonWrapper.removeChild(undoButton);
+
+    const newUndoButton = document.createElement('input');
+    newUndoButton.id = 'undo-button';
+    newUndoButton.type = 'button';
+    newUndoButton.value = 'Undo';
+    // @ts-ignore
+    undoButtonWrapper.appendChild(newUndoButton);
+
+    // @ts-ignore
+    undoButtonWrapper.appendChild(newUndoButton);
+
+    // @ts-ignore
+    newUndoButton.addEventListener('click', this.undo.bind(this));
+  }
+
+  updateDisplayIdCheckbox(): void {
+    const displayIdCheckboxWrapper = document.getElementById('display-id-checkbox-wrapper');
+    const displayIdCheckbox = document.getElementById('display-id-checkbox');
+    const displayIdLabel = document.getElementById('display-id-label');
+
+    // @ts-ignore
+    displayIdCheckboxWrapper.removeChild(displayIdCheckbox);
+    // @ts-ignore
+    displayIdCheckboxWrapper.removeChild(displayIdLabel);
+
+    const newDisplayIdCheckbox = document.createElement('input');
+    newDisplayIdCheckbox.id = 'display-id-checkbox';
+    newDisplayIdCheckbox.type = 'checkbox';
+    // @ts-ignore
+    displayIdCheckboxWrapper.appendChild(newDisplayIdCheckbox);
+
+    const newDisplayIdLabel = document.createElement('label');
+    newDisplayIdLabel.id = 'display-id-label';
+    newDisplayIdLabel.innerText = 'Display vertex id';
+    // @ts-ignore
+    displayIdCheckboxWrapper.appendChild(newDisplayIdLabel);
+
+    // @ts-ignore
+    newDisplayIdCheckbox.addEventListener('change', this.manageDisplayId.bind(this));
+  }
+
+  optimizeButton(): void {
+    const optimizeButtonWrapper = document.getElementById('optimize-button-wrapper') as HTMLSpanElement;
+    const optimizeButton = document.getElementById('optimize-button') as HTMLButtonElement;
+
+    optimizeButtonWrapper.removeChild(optimizeButton);
+
+    const newOptimizeButton = document.createElement('input') as HTMLButtonElement;
+    newOptimizeButton.id = 'optimize-button';
+    newOptimizeButton.type = 'button';
+    newOptimizeButton.value = 'Optimize!!';
+    newOptimizeButton.disabled = false;
+    optimizeButtonWrapper.appendChild(newOptimizeButton);
+
+    newOptimizeButton.addEventListener('click', this.optimize.bind(this));
+  }
+
   displayEpsilon(): void {
     const epsilonText = document.getElementById('epsilon-text');
     // @ts-ignore
     epsilonText.innerHTML = this.problemInfo.epsilon;
+  }
+
+  displayPosition(x: number, y: number): void {
+    const xText = document.getElementById('x-text');
+    const yText = document.getElementById('y-text');
+    // @ts-ignore
+    xText.innerHTML = String(x - geta);
+    // @ts-ignore
+    yText.innerHTML = String(y - geta);
+  }
+
+  cleanAbsoluteTextWrapper(): void {
+    const wrapper = <HTMLElement>document.getElementById('absolute-text-wrapper');
+    while (wrapper.hasChildNodes()) {
+      // @ts-ignore
+      wrapper.removeChild(wrapper.childNodes[0]);
+    }
   }
 }

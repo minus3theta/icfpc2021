@@ -13,11 +13,22 @@
         <span id="save-button-wrapper">
           <input id="save-button" type="button" value="Save Answer" disabled>
         </span><br>
+        <span id="undo-button-wrapper">
+          <input id="undo-button" type="button" value="Undo" disabled>
+        </span><br>
+        <span id="optimize-button-wrapper">
+          <input id="optimize-button" type="button" value="Optimize">
+        </span><br>
+        <span id="display-id-checkbox-wrapper">
+          <input id="display-id-checkbox" type="checkbox" value="Optimize">
+          <label id="display-id-label">Display vertex id</label>
+        </span><br>
         <span>epsilon: <span id="epsilon-text">-</span></span><br>
-        <span>dislikes: <span id="dislikes-text">-</span></span>
+        <span>dislikes: <span id="dislikes-text">-</span></span><br>
+        <span>position: (<span id="x-text">-</span>, <span id="y-text">-</span>)</span>
       </div>
     </div>
-    <div id="stretch-rate-wrapper"></div>
+    <div id="absolute-text-wrapper"></div>
   </div>
   <script src="dist/main.js"></script>
 </body>
