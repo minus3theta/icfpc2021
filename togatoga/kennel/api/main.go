@@ -86,6 +86,7 @@ func main() {
 	defer db.Close(context.Background())
 
 	e.POST("/api/problems/:id/solutions/:user_name", postSolutions)
+	e.GET("/api/problems/:id/solutions", getSolutionsOfProblem)
 	e.GET("/api/solutions", getSolutions)
 	e.GET("/api/problems/:id", getProblems)
 	e.POST("/api/minimal/:id", postMinimal)
@@ -220,6 +221,31 @@ func postSolutions(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, s)
+}
+
+func getSolutionsOfProblem(c echo.Context) error {
+	// TODO
+
+	// sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions WHERE problem_id = $1"
+	// id := c.Param("id")
+
+	// rows, err := db.Query(context.Background(), sql, id)
+	// if err != nil {
+	// 	return c.JSON(http.StatusInternalServerError, err)
+	// }
+	// uss := []UserSolution{}
+	// for rows.Next() {
+	// 	var us UserSolution
+	// 	err = rows.Scan(&us.Id, &us.Problem_id, &us.User_name, &us.Solution, &us.Created_at)
+
+	// 	if err != nil {
+	// 		return c.JSON(http.StatusInternalServerError, err)
+	// 	}
+	// 	uss = append(uss, us)
+	// }
+
+	// return c.JSON(http.StatusOK, uss)
+	return c.JSON(http.StatusOK, []Solution{})
 }
 
 func getProblems(c echo.Context) error {
