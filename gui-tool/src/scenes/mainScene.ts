@@ -76,6 +76,36 @@ export class Vertex {
   }
 }
 
+class BonusVertex {
+  public x;
+  public y;
+  public bonus;
+  public problem;
+  public graphics;
+  public unlocked;
+  public scene;
+
+  constructor(x: number, y: number, bonus: string, problem: number, scene: Phaser.Scene) {
+    this.x = x;
+    this.y = y;
+    this.bonus = bonus;
+    this.problem = problem;
+    this.scene = scene;
+    this.graphics = scene.add.graphics({ fillStyle: { color: 0xFFFF00, alpha: 0.7 } });
+  }
+
+  draw(): void {
+    if (this.unlocked) {
+      this.graphics.defaultFillColor = 0xFFA500;
+    } else {
+      this.graphics.defaultFillColor = 0xFFFF00;
+    }
+    this.graphics.clear();
+    const circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 30);
+    this.graphics.fillCircleShape(circle);
+  }
+}
+
 class Edge {
   public v;
   public graphics;
@@ -213,6 +243,7 @@ export class MainScene extends Phaser.Scene {
   private edges;
   private holeVertices;
   private holeEdges;
+  private bonusVertices;
 
   private history = [];
 
@@ -249,8 +280,10 @@ export class MainScene extends Phaser.Scene {
 
     this.initHole();
     this.initVerticesAndEdges();
+    this.initBonusVertices();
     this.drawFigure();
     this.drawHole();
+    this.drawBonusVertices();
     this.displayDislikes();
     this.manageGlobalist();
     this.manageDisplayId();
@@ -282,6 +315,7 @@ export class MainScene extends Phaser.Scene {
             v.drawConnectedEdges();
           }
           that.drawHole();
+          that.drawBonusVertices();
           that.displayDislikes();
           that.manageSaveButton();
           that.processing = false;
@@ -421,6 +455,16 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  initBonusVertices(): void {
+    this.bonusVertices = [];
+    if (!this.problemInfo.bonuses) return;
+
+    for (const bonus of this.problemInfo.bonuses) {
+      console.log(bonus);
+      this.bonusVertices.push(new BonusVertex(bonus.position[0], bonus.position[1], bonus.bonus, bonus.problem, this));
+    }
+  }
+
   drawLattice(): void {
     const latticeGraphics = this.add.graphics({ lineStyle: { width: 1, color: 0xDDDDDD } });
     for (let i = 0; i <= canvasSize; i += displayRate) {
@@ -428,6 +472,19 @@ export class MainScene extends Phaser.Scene {
       const line2 = new Phaser.Geom.Line(i, 0, i, canvasSize);
       latticeGraphics.strokeLineShape(line1);
       latticeGraphics.strokeLineShape(line2);
+    }
+  }
+
+  drawBonusVertices(): void {
+    for (const bonusVertex of this.bonusVertices) {
+      bonusVertex.unlocked = false;
+      for (const v of this.vertices) {
+        if (bonusVertex.x === v.x && bonusVertex.y === v.y) {
+          bonusVertex.unlocked = true;
+          break;
+        }
+      }
+      bonusVertex.draw();
     }
   }
 
@@ -630,6 +687,7 @@ export class MainScene extends Phaser.Scene {
       v.resetCircle();
     }
     this.drawFigure();
+    this.drawBonusVertices();
   }
 
   horizontalFlip(): void {
@@ -651,6 +709,7 @@ export class MainScene extends Phaser.Scene {
       v.resetCircle();
     }
     this.drawFigure();
+    this.drawBonusVertices();
   }
 
   undo(): void {
