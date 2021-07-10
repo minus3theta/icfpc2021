@@ -53,24 +53,35 @@ export class Vertex {
 class Edge {
   public v;
   public graphics;
+  public line;
 
   constructor(v1: Vertex, v2: Vertex) {
     this.v = [v1, v2];
   }
 
+  calcLength(): number {
+    const dx = this.v[0].x - this.v[1].x;
+    const dy = this.v[0].y - this.v[1].y;
+    return dx*dx + dy*dy;
+  }
+
+  updateLine(): void {
+    this.line = new Phaser.Geom.Line(this.v[0].x * displayRate,
+                                     this.v[0].y * displayRate,
+                                     this.v[1].x * displayRate,
+                                     this.v[1].y * displayRate);
+  }
+
   draw(): void {
     this.graphics.clear();
-    const line = new Phaser.Geom.Line(this.v[0].x * displayRate,
-                                      this.v[0].y * displayRate,
-                                      this.v[1].x * displayRate,
-                                      this.v[1].y * displayRate);
-    this.graphics.strokeLineShape(line);
+    this.graphics.strokeLineShape(this.line);
   }
 }
 
 class HoleEdge extends Edge {
   constructor(v1: Vertex, v2: Vertex, scene: Phaser.Scene) {
     super(v1, v2);
+    this.updateLine();
     this.graphics = scene.add.graphics({ lineStyle: { width: 2, color: 0x000000 }});
     this.draw();
   }
@@ -83,6 +94,7 @@ export class FigureEdge extends Edge {
   public textElem;
   public scene;
   public drawRateFlag = false;
+  public drawLength = 0;
 
   constructor(v1: Vertex, v2: Vertex, epsilon: number, scene: Phaser.Scene) {
     super(v1, v2);
@@ -104,31 +116,24 @@ export class FigureEdge extends Edge {
   draw(): void {
     super.draw();
 
-    if (this.drawRateFlag) {
-      this.textElem.innerText = String(this.calcStretchRate());
+    if (this.drawRateFlag || this.drawLength > 0) {
+      const len = this.drawRateFlag ? this.calcLength() : this.drawLength;
+      this.textElem.innerText = String(this.calcStretchRate(len));
       this.textElem.style.left = (String)((this.v[0].x + this.v[1].x) / 2 * displayRate) + 'px';
       this.textElem.style.top = (String)((this.v[0].y + this.v[1].y) / 2 * displayRate) + 'px';
-      const len = this.calcLength();
       if (len < this.minLength || this.maxLength < len) {
-        this.textElem.style.color = '#CC0000';
-        this.textElem.style.fontWeight = 'bold';
+        this.textElem.style.color = this.drawRateFlag ? '#CC0000' : '';
+        this.textElem.style.fontWeight = this.drawRateFlag ? 'bold' : '';
       } else {
-        this.textElem.style.color = '';
-        this.textElem.style.fontWeight = '';
+        this.textElem.style.color = this.drawRateFlag ? '' : '#00CC00';
+        this.textElem.style.fontWeight = this.drawRateFlag ? '' : 'bold';
       }
     } else {
       this.textElem.innerText = '';
     }
   }
 
-  calcLength(): number {
-    const dx = this.v[0].x - this.v[1].x;
-    const dy = this.v[0].y - this.v[1].y;
-    return dx*dx + dy*dy;
-  }
-
-  calcStretchRate(): number {
-    const len = this.calcLength();
+  calcStretchRate(len: number): number {
     return Math.floor(len / this.baseLength * 100) / 100;
   }
 
@@ -164,6 +169,7 @@ export class FigureEdge extends Edge {
     }
 
     this.graphics = this.scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.updateLine();
   }
 }
 
@@ -225,12 +231,26 @@ export class MainScene extends Phaser.Scene {
       } else {
         for (const e of that.edges) {
           e.drawRateFlag = false;
+          e.drawLength = 0;
         }
+        let hit = false;
         for (const v of that.vertices) {
           if (v.circle.contains(pointer.x, pointer.y)) {
             v.activateCircle();
+            hit = true;
           } else {
             v.deactivateCircle();
+          }
+        }
+        if (!hit) {
+          for (const e of that.holeEdges) {
+            if (Phaser.Geom.Intersects.PointToLine(pointer, e.line, 5)) {
+              const len = e.calcLength();
+              for (const e2 of that.edges) {
+                e2.drawLength = len;
+              }
+              break;
+            }
           }
         }
         that.drawFigure();
