@@ -4,13 +4,37 @@ CREATE TABLE solutions (
     problem_id INT NOT NULL,
     user_name TEXT,
     solution JSON NOT NULL,
-    created_at  TIMESTAMP with time zone NOT NULL
+    created_at TIMESTAMP with time zone NOT NULL
 );
--- INSERT INTO submissions(problem_id, user_name, user_email, submission, created_at)
--- VALUES(
---         1,
---         'hitoshi',
---         'togatoga',
---         '{"vertices": [[20, 0],[0, 20],[40, 20],[20, 40]]}',
---         current_timestamp
---     );
+
+DROP TABLE IF EXISTS problems;
+CREATE TABLE problems (
+    id INT NOT NULL PRIMARY KEY,
+    problem JSON NOT NULL
+);
+
+DROP TYPE IF EXISTS bonus_type;
+CREATE TYPE bonus_type AS ENUM('GLOBALIST', 'BREAK_A_LEG');
+DROP TABLE IF EXISTS bonuses;
+CREATE TABLE bonuses (
+    id serial NOT NULL PRIMARY KEY,
+    source INT NOT NULL,
+    source_index INT NOT NULL,
+    destination INT NOT NULL,
+    bonus bonus_type NOT NULL,
+    position JSON NOT NULL
+);
+
+DROP TABLE IF EXISTS used_bonuses;
+CREATE TABLE used_bonuses (
+    id serial NOT NULL PRIMARY KEY,
+    solution_id INT NOT NULL,
+    bonus_id INT NOT NULL
+);
+
+DROP TABLE IF EXISTS got_bonuses;
+CREATE TABLE got_bonuses (
+    id serial NOT NULL PRIMARY KEY,
+    solution_id INT NOT NULL,
+    bonus_id INT NOT NULL
+);
