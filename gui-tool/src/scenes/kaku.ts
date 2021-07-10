@@ -1,8 +1,9 @@
 import { Vertex, FigureEdge } from './mainScene'
 
-export function baneOptimize(vertices: Vertex[], edges: FigureEdge[], moved: Vertex) {
+export function baneOptimize(vertices: Vertex[], moved: Vertex[]) {
   const graph = vertices2graph(vertices)
-  bane(graph, moved.id);
+  const m: number[] = moved.map(v=>{return v.id});
+  bane(graph, m);
   graph.nodes.forEach((node, i) => {
     vertices[i].x = node.p[0];
     vertices[i].y = node.p[1];
@@ -64,7 +65,7 @@ type Graph = {
   nodes: Gnode[]
 }
 
-export function bane(graph: Graph, moved: number) {
+export function bane(graph: Graph, moved: number[]) {
   const n_iter = 10000;
   const min_e = 0;
   const k = 1.0;
@@ -82,7 +83,7 @@ export function bane(graph: Graph, moved: number) {
   for (let step = 0; step < n_iter; step++) {
     let total_e = 0;
     graph.nodes.forEach((n1, s) => {
-      if (s === moved) { return; }
+      if (moved.includes(s)) { return; }
       const pwr: Point = [0, 0];   // 頂点にかかる力
       for (const edge of n1.edges) {
         const n2 = graph.nodes[edge.v]!;
