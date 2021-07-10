@@ -9,7 +9,6 @@ def parse_sat(file):
         variables = list(map(int, f.readline().rstrip().split()))
         return variables[:-1]
 
-
 def parse_problem(file):
     with open(file, 'r') as f:
         line = f.readline().rstrip()
@@ -65,8 +64,6 @@ if __name__ == '__main__':
         variables = parse_sat(args.sat)
     fig_num = parse_problem(args.problem)
     index_to_point = parse_internal(args.internal)
-    
-    
     vertices = []
     for (i, v) in enumerate(variables):
         if v > 0:

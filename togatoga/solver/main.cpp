@@ -178,8 +178,7 @@ public:
           sat_clauses.push_back(bin_clause);
         }
       }
-
-      cerr << "Done!! " << sat_clauses.size() << endl;
+      cerr << "Done!! " << i + 1 << "/" << figure_num << " " << sat_clauses.size() << endl;
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
@@ -194,7 +193,6 @@ public:
         for (int k = 0; k < figure_num; k++) {
           pii xy3 = figure_points[k];
           for (int l : neighbor_figs[k]) {
-            
             pii xy4 = figure_points[l];
             if (!ok) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
@@ -221,6 +219,7 @@ public:
           }
         }
       }
+      cerr << "Hole Internal Done!! " << i + 1 << "/" << hole_internal_points.size() << endl;
     }
     //cerr << sat_clauses.size() << endl;
     output_cnf();
