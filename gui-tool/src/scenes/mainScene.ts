@@ -463,7 +463,7 @@ export class MainScene extends Phaser.Scene {
 
     for (const bonus of this.problemInfo.bonuses) {
       console.log(bonus);
-      this.bonusVertices.push(new BonusVertex(bonus.position[0], bonus.position[1], bonus.bonus, bonus.problem, this));
+      this.bonusVertices.push(new BonusVertex(bonus.position[0] + geta, bonus.position[1] + geta, bonus.bonus, bonus.problem, this));
     }
   }
 
