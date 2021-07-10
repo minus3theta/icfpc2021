@@ -242,6 +242,8 @@ export class MainScene extends Phaser.Scene {
     this.updateUploadAnswerButton();
     this.updateGlobalistCheckbox();
     this.updateDisplayIdCheckbox();
+    this.updateVerticalFlipButton();
+    this.updateHorizontalFlipButton();
     this.manageUndoButton();
     this.optimizeButton();
 
@@ -334,15 +336,13 @@ export class MainScene extends Phaser.Scene {
       for (const v of that.vertices) {
         if (v.circle.contains(pointer.x, pointer.y) && v.selected) {
           that.dragging = true;
-        }
-      }
-      if (that.dragging) {
-        for (const v of that.vertices) {
-          if (v.selected) {
+          if (!that.areaSelected) {
             // @ts-ignore
             that.selectedVertices.push(v);
           }
         }
+      }
+      if (that.dragging) {
         const roundX = Math.round(pointer.x / displayRate);
         const roundY = Math.round(pointer.y / displayRate);
         that.dragBasePoint = [roundX, roundY];
@@ -350,6 +350,7 @@ export class MainScene extends Phaser.Scene {
       }
       if (!that.dragging && !that.selecting) {
         that.areaSelected = false;
+        that.selectedVertices = [];
         for (const v of that.vertices) v.unselect();
 
         const roundX = Math.round(pointer.x / displayRate);
@@ -357,12 +358,19 @@ export class MainScene extends Phaser.Scene {
         that.selecting = true;
         that.selectBasePoint = [roundX * displayRate, roundY * displayRate];
       }
+      that.manageFlipButtons();
     });
 
     this.input.on('pointerup', function(pointer) {
       if (that.dragging) {
         that.dragging = false;
-        that.selectedVertices = [];
+        for (const v of that.selectedVertices) {
+          // @ts-ignore
+          v.select();
+        }
+        if (!that.areaSelected) {
+          that.selectedVertices = [];
+        }
       }
       if (that.selecting) {
         that.selecting = false;
@@ -370,8 +378,11 @@ export class MainScene extends Phaser.Scene {
         for (const v of that.vertices) {
           if (v.selected) {
             that.areaSelected = true;
+            // @ts-ignore
+            that.selectedVertices.push(v);
           }
         }
+        that.manageFlipButtons();
       }
     });
   }
@@ -600,6 +611,48 @@ export class MainScene extends Phaser.Scene {
     this.manageUndoButton();
   }
 
+  verticalFlip(): void {
+    if (this.selectedVertices.length <= 1) return;
+    let minY = 10000;
+    let maxY = -10000;
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      minY = Math.min(minY, v.y);
+      // @ts-ignore
+      maxY = Math.max(maxY, v.y);
+    }
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      v.y = maxY - (v.y - minY)
+      // @ts-ignore
+      v.select();
+      // @ts-ignore
+      v.resetCircle();
+    }
+    this.drawFigure();
+  }
+
+  horizontalFlip(): void {
+    if (this.selectedVertices.length <= 1) return;
+    let minX = 10000;
+    let maxX = -10000;
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      minX = Math.min(minX, v.x);
+      // @ts-ignore
+      maxX = Math.max(maxX, v.x);
+    }
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      v.x = maxX - (v.x - minX)
+      // @ts-ignore
+      v.select();
+      // @ts-ignore
+      v.resetCircle();
+    }
+    this.drawFigure();
+  }
+
   undo(): void {
     const arr = this.history.pop();
     if (!arr) return;
@@ -645,6 +698,14 @@ export class MainScene extends Phaser.Scene {
       }
     }
     reader.readAsText(file);
+  }
+
+  manageFlipButtons(): void {
+    const buttons = [
+      <HTMLInputElement>document.getElementById('vertical-flip-button'),
+      <HTMLInputElement>document.getElementById('horizontal-flip-button')
+    ];
+    for (const button of buttons) button.disabled = !this.areaSelected;
   }
 
   manageSaveButton(): void {
@@ -698,6 +759,48 @@ export class MainScene extends Phaser.Scene {
         v.textElem.innerText = '';
       }
     }
+  }
+
+  updateVerticalFlipButton(): void {
+    const verticalFlipButtonWrapper = document.getElementById('vertical-flip-button-wrapper');
+    const verticalFlipButton = document.getElementById('vertical-flip-button');
+
+    // @ts-ignore
+    verticalFlipButtonWrapper.removeChild(verticalFlipButton);
+
+    const newVerticalFlipButton = document.createElement('input');
+    newVerticalFlipButton.id = 'vertical-flip-button';
+    newVerticalFlipButton.type = 'button';
+    newVerticalFlipButton.value = '縦反転';
+    // @ts-ignore
+    verticalFlipButtonWrapper.appendChild(newVerticalFlipButton);
+
+    // @ts-ignore
+    verticalFlipButtonWrapper.appendChild(newVerticalFlipButton);
+
+    // @ts-ignore
+    newVerticalFlipButton.addEventListener('click', this.verticalFlip.bind(this));
+  }
+
+  updateHorizontalFlipButton(): void {
+    const horizontalFlipButtonWrapper = document.getElementById('horizontal-flip-button-wrapper');
+    const horizontalFlipButton = document.getElementById('horizontal-flip-button');
+
+    // @ts-ignore
+    horizontalFlipButtonWrapper.removeChild(horizontalFlipButton);
+
+    const newHorizontalFlipButton = document.createElement('input');
+    newHorizontalFlipButton.id = 'horizontal-flip-button';
+    newHorizontalFlipButton.type = 'button';
+    newHorizontalFlipButton.value = '縦反転';
+    // @ts-ignore
+    horizontalFlipButtonWrapper.appendChild(newHorizontalFlipButton);
+
+    // @ts-ignore
+    horizontalFlipButtonWrapper.appendChild(newHorizontalFlipButton);
+
+    // @ts-ignore
+    newHorizontalFlipButton.addEventListener('click', this.horizontalFlip.bind(this));
   }
 
   updateSaveButton(): void {
