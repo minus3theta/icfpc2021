@@ -370,6 +370,9 @@ export class MainScene extends Phaser.Scene {
           // @ts-ignore
           v.select();
         }
+        if (!that.areaSelected) {
+          that.selectedVertices = [];
+        }
       }
       if (that.selecting) {
         that.selecting = false;
