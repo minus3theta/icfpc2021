@@ -12,6 +12,7 @@
 #include <ctime>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <iomanip>
 #include <iostream>
 #include <list>
@@ -24,6 +25,7 @@
 #include <sstream>
 #include <stack>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -100,26 +102,34 @@ public:
     }
     intersected_points.resize(hole_internal_points.size(),
                               vector<char>(hole_internal_points.size(), 0));
-
+    vector<future<vector<tuple<int, int, bool>>>> futures;
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      pll xy1 = hole_internal_points[i];
-      for (int j = i + 1; j < hole_internal_points.size(); j++) {
-        pll xy2 = hole_internal_points[j];
-        bool ok = false;
-        for (int k = 0; k < hole_points.size(); k++) {
-          int l = (k + 1) % hole_points.size();
-          pll xy3 = hole_points[k];
-          pll xy4 = hole_points[l];
-          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
-            ok = true;
-            break;
+      futures.push_back(std::async([&, i] {
+        pll xy1 = hole_internal_points[i];
+        vector<tuple<int, int, bool>> results;
+        for (int j = i + 1; j < hole_internal_points.size(); j++) {
+          pll xy2 = hole_internal_points[j];
+          bool intersect = false;
+          for (int k = 0; k < hole_points.size(); k++) {
+            int l = (k + 1) % hole_points.size();
+            pll xy3 = hole_points[k];
+            pll xy4 = hole_points[l];
+            if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
+              intersect = true;
+              break;
+            }
           }
+          results.push_back(mt(i, j, intersect));
         }
-
-        if (ok) {
-          intersected_points[i][j] = 1;
-          intersected_points[j][i] = 1;
-        }
+        return results;
+      }));
+    }
+    for (auto &future : futures) {
+      for (const auto &result : future.get()) {
+        int i, j, k;
+        tie(i, j, k) = result;
+        intersected_points[i][j] = k;
+        intersected_points[j][i] = k;
       }
     }
     cerr << "Done!! " << __func__ << endl;
@@ -209,7 +219,7 @@ public:
           pii xy3 = figure_points[k];
           for (int l : neighbor_figs[k]) {
             pii xy4 = figure_points[l];
-          
+
             if (!ok) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
               int sat_index2 = sat_index_from_fig_and_point(l, xy2);
