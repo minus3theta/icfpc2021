@@ -69,9 +69,9 @@ GuiSolver::GuiSolver(const FilePath& file)
 }
 
 GuiSolver::GuiSolver()
-    : m_vel_reduce(0.99)
-    , m_len_fix(0.1)
-    , m_col_fix(0.2)
+    : m_vel_reduce(0.995)
+    , m_len_fix(0.8)
+    , m_col_fix(0.8)
     , m_selected(-1)
 {}
 
@@ -169,13 +169,32 @@ void GuiSolver::update() {
             m_vel[i].y *= m_vel_reduce;
         }
         Array<MinMaxVec> m_vel_dif(m_pos.size());
+        // 点ごとにホール内へ押し込む
+        for (int i = 0; i < m_pos.size(); i++) {
+            if (m_hole.contains(m_pos[i])) continue;
+            double min_depth = 1e12;
+            Vec2 closest;
+            for (auto& l : m_edge_line) {
+                Vec2 closest_src = l.closest(m_pos[i]);
+                double dist = closest_src.distanceFromSq(m_pos[i]);
+                if (dist < min_depth) {
+                    min_depth = dist;
+                    closest = closest_src;
+                }
+            }
+            if (min_depth < 0.01) continue;
+            min_depth = sqrt(min_depth);
+            Vec2 dir = closest - m_pos[i];
+            dir.normalize();
+            m_vel_dif[i].update(dir, min_depth);
+        }
         for(int i=0;i<m_edge.size();i++){
             const auto& e = m_edge[i];
             if (!m_move[e.x] && !m_move[e.y]) continue;
             const auto& src = m_pos[e.x];
             const auto& dst = m_pos[e.y];
             auto line = Line(src, dst);
-            // 枠内に収める処理。バグってる？
+            // 線分 vs ホール枠のコリジョン。これはダメそう
             /*
             if (lineInHold(line)) {
                 for (auto& l : m_edge_line) {
