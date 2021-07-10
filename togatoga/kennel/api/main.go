@@ -90,6 +90,7 @@ func main() {
 	e.GET("/api/problems/:id", getProblems)
 	e.POST("/api/minimal/:id", postMinimal)
 	e.GET("/api/minimal/:id", getMinimal)
+	e.GET("/api/minimal", getMinimalAll)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -277,4 +278,28 @@ func getMinimal(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, minimal)
+}
+
+func getMinimalAll(c echo.Context) error {
+	sql := `SELECT problem_id, dislike, created_at FROM
+	(SELECT problem_id, dislike, created_at,
+	rank() OVER (PARTITION BY problem_id ORDER BY created_at DESC) as pos
+	FROM minimal_dislikes) as sub
+	WHERE pos = 1 ORDER BY problem_id`
+
+	rows, err := db.Query(context.Background(), sql)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	mins := []MinimalRecord{}
+	for rows.Next() {
+		var min MinimalRecord
+		err = rows.Scan(&min.Problem, &min.Dislike, &min.Created_at)
+
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err)
+		}
+		mins = append(mins, min)
+	}
+	return c.JSON(http.StatusOK, mins)
 }
