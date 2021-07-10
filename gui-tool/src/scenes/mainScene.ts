@@ -4,6 +4,7 @@ import { baneOptimize } from "./kaku";
 const geta = 2;
 let displayRate = 5;
 let maxValue = 0;
+let globalist = false;
 
 export class Vertex {
   public x;
@@ -139,7 +140,7 @@ export class FigureEdge extends Edge {
       this.textElem.innerText = String(this.calcStretchRate(len));
       this.textElem.style.left = (String)((this.v[0].x + this.v[1].x) / 2 * displayRate) + 'px';
       this.textElem.style.top = (String)((this.v[0].y + this.v[1].y) / 2 * displayRate) + 'px';
-      if (len < this.minLength || this.maxLength < len) {
+      if (!globalist && (len < this.minLength || this.maxLength < len)) {
         this.textElem.style.color = this.drawRateFlag ? '#CC0000' : '';
         this.textElem.style.fontWeight = this.drawRateFlag ? 'bold' : '';
       } else {
@@ -226,6 +227,7 @@ export class MainScene extends Phaser.Scene {
     this.updateSaveButton();
     this.updateUndoButton();
     this.updateUploadAnswerButton();
+    this.updateGlobalistCheckbox();
     this.updateDisplayIdCheckbox();
     this.manageUndoButton();
     this.optimizeButton();
@@ -235,6 +237,7 @@ export class MainScene extends Phaser.Scene {
     this.drawFigure();
     this.drawHole();
     this.displayDislikes();
+    this.manageGlobalist();
     this.manageDisplayId();
 
     const that = this;
@@ -404,16 +407,34 @@ export class MainScene extends Phaser.Scene {
   }
 
   isValidAnswer(): boolean {
+    if (globalist) {
+      let sum = 0;
+      for (const edge of this.edges) {
+        sum += Math.abs(edge.calcLength() / edge.baseLength - 1);
+      }
+      sum *= 1000000;
+      const limit = this.edges.length * this.problemInfo.epsilon;
+      const elem = <HTMLSpanElement>document.getElementById('globalist-text');
+      elem.innerText = String(Math.ceil(sum)) + " / " + String(limit);
+      if (sum > limit) {
+        elem.style.color = '#CC0000';
+        elem.style.fontWeight = 'bold';
+        return false;
+      }
+      elem.style.color = '';
+      elem.style.fontWeight = '';
+    } else {
+      for (const edge of this.edges) {
+        if (!edge.isValidLength()) {
+          return false;
+        }
+      }
+    }
     for (const holeEdge of this.holeEdges) {
       for (const figureEdge of this.edges) {
         if (this.isIntersect(holeEdge, figureEdge)) {
           return false;
         }
-      }
-    }
-    for (const edge of this.edges) {
-      if (!edge.isValidLength()) {
-        return false;
       }
     }
     return true;
@@ -460,10 +481,14 @@ export class MainScene extends Phaser.Scene {
   }
 
   saveAnswer(): void {
-    const answer = { vertices: [] };
+    const answer = { vertices: [], bonuses: [] };
     for (const v of this.vertices) {
       // @ts-ignore
       answer.vertices.push([v.x - geta, v.y - geta]);
+    }
+    if (globalist) {
+      // @ts-ignore
+      answer.bonuses.push({ bonus: "GLOBALIST", problem: (<HTMLInputElement>document.getElementById('globalist-problem')).valueAsNumber });
     }
 
     const a = document.createElement('a');
@@ -567,6 +592,18 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  manageGlobalist(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('globalist-checkbox');
+    globalist = checkbox.checked;
+    if (!globalist) {
+      const elem = <HTMLSpanElement>document.getElementById('globalist-text');
+      elem.innerText = "-";
+      elem.style.color = '';
+      elem.style.fontWeight = '';
+    }
+    this.manageSaveButton();
+  }
+
   manageDisplayId(): void {
     const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
     if (checkbox.checked) {
@@ -644,6 +681,12 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newUploadAnswerButton.addEventListener('change', this.uploadAnswer.bind(this));
+  }
+
+  updateGlobalistCheckbox(): void {
+    const globalistCheckbox = <HTMLInputElement>document.getElementById('globalist-checkbox');
+
+    globalistCheckbox.addEventListener('change', this.manageGlobalist.bind(this));
   }
 
   updateDisplayIdCheckbox(): void {
