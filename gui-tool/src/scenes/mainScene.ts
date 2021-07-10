@@ -489,6 +489,7 @@ export class MainScene extends Phaser.Scene {
       v.resetCircle();
     }
     this.drawHole();
+    this.displayDislikes();
     this.manageUndoButton();
   }
 
