@@ -3,12 +3,13 @@
 #include <ios>
 #define PICOJSON_USE_INT64
 #include "picojson.h"
+#include <cassert>
+#include <climits>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <vector>
-#include <climits>
-#include <cassert>
 
 struct Position {
   long long x, y;
@@ -30,11 +31,12 @@ long long squareDistance(const Position &p1, const Position &p2) {
   long long y = p1.y - p2.y;
   return x * x + y * y;
 }
-long long dislikes(const std::vector<Position> &hole, const std::vector<Position> &vertices) {
+long long dislikes(const std::vector<Position> &hole,
+                   const std::vector<Position> &vertices) {
   long long ans = 0;
-  for (auto &p: hole) {
+  for (auto &p : hole) {
     long long min = LLONG_MAX;
-    for (auto &v: vertices) {
+    for (auto &v : vertices) {
       min = std::min(min, squareDistance(p, v));
     }
     ans += min;
@@ -150,9 +152,13 @@ bool isInHole(const Position &point, const std::vector<Position> &hole) {
 }
 std::vector<Position> getInnerPoints(const InputData &input) {
   auto &hole = input.hole;
-  auto it = std::max_element(hole.begin(), hole.end(), [](const Position &p1, const Position &p2) { return p1.x < p2.x; });
+  auto it = std::max_element(
+      hole.begin(), hole.end(),
+      [](const Position &p1, const Position &p2) { return p1.x < p2.x; });
   long long maxX = it->x;
-  it = std::max_element(hole.begin(), hole.end(), [](const Position &p1, const Position &p2) { return p1.y < p2.y; });
+  it = std::max_element(
+      hole.begin(), hole.end(),
+      [](const Position &p1, const Position &p2) { return p1.y < p2.y; });
   long long maxY = it->y;
   std::vector<Position> ans;
   for (int i = 0; i <= maxX; ++i) {
@@ -164,7 +170,8 @@ std::vector<Position> getInnerPoints(const InputData &input) {
   }
   return ans;
 }
-bool intersectHole(const Position &p1, const Position &p2, const std::vector<Position> &hole) {
+bool intersectHole(const Position &p1, const Position &p2,
+                   const std::vector<Position> &hole) {
   for (int i = 0; i < hole.size(); ++i) {
     int j = (i + 1) % hole.size();
     auto &u1 = hole[i];
@@ -180,7 +187,7 @@ using VertexDistences = std::vector<std::vector<std::pair<int, long long>>>;
 VertexDistences getVertexDistance(const InputData &input) {
   auto &figure = input.figure;
   VertexDistences ans(figure.vertices.size());
-  for (auto &[u, v]: figure.edges) {
+  for (auto &[u, v] : figure.edges) {
     auto p1 = figure.vertices[u];
     auto p2 = figure.vertices[v];
     long long d = squareDistance(p1, p2);
@@ -190,32 +197,33 @@ VertexDistences getVertexDistance(const InputData &input) {
   return ans;
 }
 
-void dfs(
-    int i,
-    const VertexDistences &vertexDistances,
-    const InputData &input,
-    const std::vector<Position> &innerPoints,
-    std::vector<Position> &state,
-    std::vector<Position> &ans,
-    long long &score) {
+const char *partialResultOutputDir = "output";
+
+void dfs(int i, const VertexDistences &vertexDistances, const InputData &input,
+         const std::vector<Position> &innerPoints, std::vector<Position> &state,
+         std::vector<Position> &ans, long long &score) {
   if (i == vertexDistances.size()) {
     long long d = dislikes(input.hole, state);
     if (d < score) {
+      std::ofstream fout(std::string(partialResultOutputDir) + "/" +
+                         std::to_string(d) + ".json");
+      OutputData output{state};
+      dump(fout, output);
       score = d;
       ans = state;
     }
     return;
   }
-  for (auto p: innerPoints) {
+  for (auto p : innerPoints) {
     bool ok = true;
-    for (auto [v, originalDist]: vertexDistances[i]) {
+    for (auto [v, originalDist] : vertexDistances[i]) {
       if (i <= v)
         continue;
       assert(v < state.size());
       auto q = state[v];
       long long curDist = squareDistance(p, q);
-      double expansion = std::abs((double)curDist/(double)originalDist - 1);
-      if (expansion > (double)input.epsilon/1000000.0) {
+      double expansion = std::abs((double)curDist / (double)originalDist - 1);
+      if (expansion > (double)input.epsilon / 1000000.0) {
         ok = false;
         break;
       }
@@ -237,7 +245,7 @@ OutputData solve(const InputData &input) {
   auto distances = getVertexDistance(input);
   std::vector<Position> ans, state;
   long long score = LLONG_MAX;
-  for (auto &p: innerPoints) {
+  for (auto &p : innerPoints) {
     state.push_back(p);
     dfs(1, distances, input, innerPoints, state, ans, score);
     state.pop_back();
@@ -247,10 +255,15 @@ OutputData solve(const InputData &input) {
 
 int main(int argv, const char *argc[]) {
   if (argv < 3) {
+    std::cout << "./a.out ${PROBREM_JSON_FILE} ${RESULT_JSON_FILE} "
+                 "${PARTIAL_RESULT_OUTPUT_DIR}"
+              << std::endl;
     return 0;
   }
   const char *filename = argc[1];
   const char *outputfilename = argc[2];
+  partialResultOutputDir = argc[3];
+  std::filesystem::create_directory(partialResultOutputDir);
   std::ifstream fin(filename);
   auto input = load(fin);
   auto &hole = input.hole;
