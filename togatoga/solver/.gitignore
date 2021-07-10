@@ -1,3 +1,4 @@
 *.cnf
 *.txt
 a.out
+*.json
