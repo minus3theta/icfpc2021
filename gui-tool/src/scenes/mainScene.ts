@@ -3,6 +3,7 @@ import { baneOptimize } from "./kaku";
 
 const geta = 2;
 let displayRate = 5;
+let maxValue = 0;
 let displayStretchRateFlag = false;
 
 export class Vertex {
@@ -27,6 +28,8 @@ export class Vertex {
 
   resetCircle(): void {
     this.graphics.clear();
+    this.x = Math.max(Math.min(this.x, maxValue), 0);
+    this.y = Math.max(Math.min(this.y, maxValue), 0);
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
   }
@@ -320,7 +323,7 @@ export class MainScene extends Phaser.Scene {
   initDisplayRate(problemInfo): void {
     if (problemInfo === undefined) return;
 
-    let maxValue = 0;
+    maxValue = 0;
     for (const v of problemInfo.hole) {
       maxValue = Math.max(maxValue, v[0]);
       maxValue = Math.max(maxValue, v[1]);
@@ -329,7 +332,7 @@ export class MainScene extends Phaser.Scene {
       maxValue = Math.max(maxValue, v[0]);
       maxValue = Math.max(maxValue, v[1]);
     }
-    displayRate = canvasSize / (maxValue + 5);
+    displayRate = canvasSize / (maxValue + geta * 2);
   }
 
   initHole(): void {
