@@ -5,7 +5,6 @@
 
 #include "GuiSolver.h"
 
-constexpr double cScale = 3.0;
 constexpr double cOffset = 10.0;
 constexpr int cRepeatNum = 4;
 constexpr int cFrame = 60;
@@ -37,10 +36,23 @@ GuiSolver::GuiSolver(const FilePath& file)
     const JSONReader json(file);
     if (!json) throw Error(U"Failed to load input json");
 
+    int max_coord = 0;
+    for (const auto& pt : json[U"hole"].arrayView()) {
+        for (const auto& v : pt.arrayView()) {
+            max_coord = std::max(max_coord, v.get<int32>());
+        }
+    }
+    for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
+        for (const auto& v : pt.arrayView()) {
+            max_coord = std::max(max_coord, v.get<int32>());
+        }
+    }
+    m_scale = 780.f / max_coord;
+
     Array<Vec2> hole_point;
     for (const auto& pt: json[U"hole"].arrayView()){
         auto p = pt.getArray<double>();
-        hole_point.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
+        hole_point.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
     }
     size_t hole_size = hole_point.size();
 
@@ -51,7 +63,7 @@ GuiSolver::GuiSolver(const FilePath& file)
 
     for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
         auto p = pt.getArray<double>();
-        m_pos.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
+        m_pos.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
     }
 
     for (const auto& pt : json[U"figure"][U"edges"].arrayView()) {
@@ -72,6 +84,7 @@ GuiSolver::GuiSolver()
     : m_vel_reduce(0.995)
     , m_len_fix(0.8)
     , m_col_fix(0.8)
+    , m_scale(1.0)
     , m_selected(-1)
 {}
 
@@ -80,8 +93,8 @@ void GuiSolver::readSolution(const FilePath& file) {
     size_t idx = 0;
     for (const auto& pt : json[U"vertices"].arrayView()) {
         auto p = pt.getArray<double>();
-        m_pos[idx].x = cScale * p[0] + cOffset;
-        m_pos[idx].y = cScale * p[1] + cOffset;
+        m_pos[idx].x = m_scale * p[0] + cOffset;
+        m_pos[idx].y = m_scale * p[1] + cOffset;
         m_vel[idx].x = 0.0;
         m_vel[idx].y = 0.0;
         m_move[idx] = true;
@@ -94,7 +107,7 @@ void GuiSolver::write(const FilePath& file) {
     writer << U"{";
     writer << U"    \"vertices\": [";
     for (int i = 0; i < m_pos.size(); i++) {
-        writer << U"        [" << (m_pos[i].x - cOffset) / cScale << U", " << (m_pos[i].y - cOffset) / cScale << (i == m_pos.size() - 1 ? U"]" : U"],");
+        writer << U"        [" << (m_pos[i].x - cOffset) / m_scale << U", " << (m_pos[i].y - cOffset) / m_scale << (i == m_pos.size() - 1 ? U"]" : U"],");
     }
     writer << U"    ]";
     writer << U"}";
