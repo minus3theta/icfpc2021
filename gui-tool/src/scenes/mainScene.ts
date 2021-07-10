@@ -218,6 +218,7 @@ export class MainScene extends Phaser.Scene {
 
   private dragging = false;
   private selectedVertices = [];
+  private lastDraggedVertex;
   private selecting = false;
   private areaSelected = false;
   private processing = false;
@@ -362,6 +363,7 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerup', function(pointer) {
       if (that.dragging) {
         that.dragging = false;
+        that.lastDraggedVertex = that.selectedVertices[0];
         that.selectedVertices = [];
       }
       if (that.selecting) {
@@ -574,7 +576,7 @@ export class MainScene extends Phaser.Scene {
 
   optimize(): void {
     this.pushHistory();
-    baneOptimize(this.vertices, this.edges, this.vertices[0]);  // FIXME
+    baneOptimize(this.vertices, this.edges, this.lastDraggedVertex);
     this.drawFigure();
     this.manageSaveButton();
   }
