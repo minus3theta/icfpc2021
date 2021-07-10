@@ -37,6 +37,13 @@ class Vertex {
   deactivateCircle(): void {
     this.graphics.setAlpha(0);
   }
+
+  drawConnectedEdges(): void {
+    for (const e of this.edges) {
+      e.updateLineStyle();
+      e.draw();
+    }
+  }
 }
 
 class Edge {
@@ -126,8 +133,8 @@ class FigureEdge extends Edge {
     return this.minLength <= len && len <= this.maxLength;
   }
 
-  updateLineStyle(scene: Phaser.Scene): void {
-    this.graphics.clear();
+  updateLineStyle(): void {
+    this.graphics.destroy();
     const len = this.calcLength();
     let width = 4;
     let color = 0xFF00FF;
@@ -152,7 +159,7 @@ class FigureEdge extends Edge {
       alpha = 0.6;
     }
 
-    this.graphics = scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.graphics = this.scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
   }
 }
 
@@ -205,7 +212,7 @@ export class MainScene extends Phaser.Scene {
           v.y = roundY;
           that.drawHole();
           v.resetCircle();
-          that.drawFigure();
+          v.drawConnectedEdges();
           that.displayDislikes();
           that.manageSaveButton();
           that.processing = false;
@@ -318,7 +325,7 @@ export class MainScene extends Phaser.Scene {
 
   drawFigure(): void {
     for (const edge of this.edges) {
-      edge.updateLineStyle(this);
+      edge.updateLineStyle();
       edge.draw();
     }
   }
