@@ -7,6 +7,7 @@ public:
 	explicit GuiSolver(const FilePath& file);
 	explicit GuiSolver();
 	~GuiSolver() {}
+	void readSolution(const FilePath& file);
 	void write(const FilePath& file);
 	void update();
 private:

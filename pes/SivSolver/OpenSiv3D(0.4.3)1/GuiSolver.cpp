@@ -34,54 +34,38 @@ private:
 GuiSolver::GuiSolver(const FilePath& file)
     : GuiSolver()
 {
-    TextReader reader(file);
-    String line;
+    const JSONReader json(file);
+    if (!json) throw Error(U"Failed to load input json");
 
-    if (!reader.readLine(line)) throw Error(U"Failed to read size of hole");
-    int32 hole_size = Parse<int32>(line);
-
-    Array<Vec2> hole_point(hole_size);
-    for (int32 i = 0; i < hole_size; i++) {
-        if (!reader.readLine(line)) throw Error(U"Failed to read vertex of hole");
-        auto v = line.split(' ');
-        if (v.size() != 2) throw Error(U"Invalid format of vertex");
-        hole_point[i].x = cScale * Parse<double>(v[0]) + cOffset;
-        hole_point[i].y = cScale * Parse<double>(v[1]) + cOffset;
+    Array<Vec2> hole_point;
+    for (const auto& pt: json[U"hole"].arrayView()){
+        auto p = pt.getArray<double>();
+        hole_point.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
     }
+    size_t hole_size = hole_point.size();
+
     for (int32 i = 0; i < hole_size; i++) {
         m_edge_line.emplace_back(hole_point[i], hole_point[(i + 1) % hole_size]);
     }
     m_hole = Polygon(hole_point);
 
-    if (!reader.readLine(line)) throw Error(U"Failed to read number of edge");
-    int32 edge_num = Parse<int32>(line);
-    for (int32 i = 0; i < edge_num; i++) {
-        if (!reader.readLine(line)) throw Error(U"Failed to read edge");
-        auto v = line.split(' ');
-        if (v.size() != 2) throw Error(U"Invalid format of edge");
-        m_edge.emplace_back(Parse<double>(v[0]), Parse<double>(v[1]));
+    for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
+        auto p = pt.getArray<double>();
+        m_pos.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
     }
 
-    if (!reader.readLine(line)) throw Error(U"Failed to read number of vertex");
-    int32 vertex_num = Parse<int32>(line);
-    for (int32 i = 0; i < vertex_num; i++) {
-        if (!reader.readLine(line)) throw Error(U"Failed to read edge");
-        auto v = line.split(' ');
-        if (v.size() != 2) throw Error(U"Invalid format of vertex");
-        m_pos.emplace_back(cScale * Parse<double>(v[0]) + cOffset, cScale * Parse<double>(v[1] + cOffset));
-    }
-    // (x-x')*(x-x')+(y-y')*(y-y')
-    for (auto& e : m_edge) {
-        const auto& src = m_pos[e.x];
-        const auto& dst = m_pos[e.y];
+    for (const auto& pt : json[U"figure"][U"edges"].arrayView()) {
+        auto p = pt.getArray<int32>();
+        m_edge.emplace_back(p[0], p[1]);
+        const auto& src = m_pos[p[0]];
+        const auto& dst = m_pos[p[1]];
         m_default_len.emplace_back(src.distanceFromSq(dst));
     }
 
-    m_vel.assign(vertex_num, Vec2(0.0, 0.0));
-    m_move.assign(vertex_num, true);
+    m_vel.assign(m_pos.size(), Vec2(0.0, 0.0));
+    m_move.assign(m_pos.size(), true);
 
-    if (!reader.readLine(line)) throw Error(U"Failed to read epsilon");
-    m_epsilon = 0.95 * 1e-6 * Parse<int32>(line);
+    m_epsilon = 0.95 * 1e-6 * json[U"epsilon"].get<int32>();
 }
 
 GuiSolver::GuiSolver()
@@ -91,12 +75,29 @@ GuiSolver::GuiSolver()
     , m_selected(-1)
 {}
 
+void GuiSolver::readSolution(const FilePath& file) {
+    const JSONReader json(file);
+    size_t idx = 0;
+    for (const auto& pt : json[U"vertices"].arrayView()) {
+        auto p = pt.getArray<double>();
+        m_pos[idx].x = cScale * p[0] + cOffset;
+        m_pos[idx].y = cScale * p[1] + cOffset;
+        m_vel[idx].x = 0.0;
+        m_vel[idx].y = 0.0;
+        m_move[idx] = true;
+        ++idx;
+    }
+}
+
 void GuiSolver::write(const FilePath& file) {
     TextWriter writer(file);
-    writer << m_pos.size();
-    for (auto& p : m_pos) {
-        writer << p.x << U" " << p.y;
+    writer << U"{";
+    writer << U"    \"vertices\": [";
+    for (int i = 0; i < m_pos.size(); i++) {
+        writer << U"        [" << (m_pos[i].x - cOffset) / cScale << U", " << (m_pos[i].y - cOffset) / cScale << (i == m_pos.size() - 1 ? U"]" : U"],");
     }
+    writer << U"    ]";
+    writer << U"}";
 }
 
 void GuiSolver::update() {
