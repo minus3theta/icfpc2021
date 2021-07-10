@@ -4,8 +4,6 @@ CREATE TABLE solutions (
     problem_id INT NOT NULL,
     user_name TEXT,
     solution JSON NOT NULL,
-    use_globalist BOOLEAN NOT NULL,
-    use_break_a_leg BOOLEAN NOT NULL,
     created_at TIMESTAMP with time zone NOT NULL
 );
 
@@ -22,4 +20,18 @@ CREATE TABLE bonuses (
     source INT NOT NULL,
     destination INT NOT NULL,
     bonus bonus_type NOT NULL
+);
+
+DROP TABLE IF EXISTS used_bonuses;
+CREATE TABLE used_bonuses (
+    id serial NOT NULL PRIMARY KEY,
+    solution_id INT NOT NULL,
+    bonus_id INT NOT NULL
+);
+
+DROP TABLE IF EXISTS got_bonuses;
+CREATE TABLE got_bonuses (
+    id serial NOT NULL PRIMARY KEY,
+    solution_id INT NOT NULL,
+    bonus_id INT NOT NULL
 );
