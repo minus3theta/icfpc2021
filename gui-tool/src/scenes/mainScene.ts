@@ -191,6 +191,8 @@ export class MainScene extends Phaser.Scene {
   private holeVertices;
   private holeEdges;
 
+  private history = [];
+
   private dragging = false;
   private draggingVertex;
   private processing = false;
@@ -206,6 +208,8 @@ export class MainScene extends Phaser.Scene {
     this.applyGeta();
     this.displayEpsilon();
     this.updateSaveButton();
+    this.updateUndoButton();
+    this.manageUndoButton();
     this.optimizeButton();
 
     this.initHole();
@@ -266,6 +270,7 @@ export class MainScene extends Phaser.Scene {
         if (v.circle.contains(pointer.x, pointer.y)) {
           that.dragging = true;
           that.draggingVertex = v;
+          that.pushHistory();
           break;
         }
       }
@@ -273,7 +278,7 @@ export class MainScene extends Phaser.Scene {
 
     this.input.on('pointerup', function(pointer) {
       that.dragging = false;
-    })
+    });
   }
 
   applyGeta(): void {
@@ -451,9 +456,40 @@ export class MainScene extends Phaser.Scene {
   }
 
   optimize(): void {
+    this.pushHistory();
     baneOptimize(this.vertices, this.edges, this.draggingVertex);
     this.drawFigure();
     this.manageSaveButton();
+  }
+
+  pushHistory(): void {
+    const arr = [];
+    for (let i = 0; i < this.vertices.length; i++) {
+      // @ts-ignore
+      arr.push([this.vertices[i].x, this.vertices[i].y]);
+    }
+    // @ts-ignore
+    this.history.push(arr);
+
+    if (this.history.length > 30) {
+      this.history.shift();
+    }
+    this.manageUndoButton();
+  }
+
+  undo(): void {
+    const arr = this.history.pop();
+    if (!arr) return;
+    for (let i = 0; i < this.vertices.length; i++) {
+      this.vertices[i].x = arr[i][0];
+      this.vertices[i].y = arr[i][1];
+    }
+    this.drawFigure();
+    for (const v of this.vertices) {
+      v.resetCircle();
+    }
+    this.drawHole();
+    this.manageUndoButton();
   }
 
   manageSaveButton(): void {
@@ -464,6 +500,17 @@ export class MainScene extends Phaser.Scene {
     } else {
       // @ts-ignore
       saveButton.disabled = true;
+    }
+  }
+
+  manageUndoButton(): void {
+    const undoButton = document.getElementById('undo-button');
+    if (this.history.length) {
+      // @ts-ignore
+      undoButton.disabled = false;
+    } else {
+      // @ts-ignore
+      undoButton.disabled = true;
     }
   }
 
@@ -484,6 +531,24 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newSaveButton.addEventListener('click', this.saveAnswer.bind(this));
+  }
+
+  updateUndoButton(): void {
+    const undoButtonWrapper = document.getElementById('undo-button-wrapper');
+    const undoButton = document.getElementById('undo-button');
+
+    // @ts-ignore
+    undoButtonWrapper.removeChild(undoButton);
+
+    const newUndoButton = document.createElement('input');
+    newUndoButton.id = 'undo-button';
+    newUndoButton.type = 'button';
+    newUndoButton.value = 'Undo';
+    // @ts-ignore
+    undoButtonWrapper.appendChild(newUndoButton);
+
+    // @ts-ignore
+    newUndoButton.addEventListener('click', this.undo.bind(this));
   }
 
   optimizeButton(): void {
