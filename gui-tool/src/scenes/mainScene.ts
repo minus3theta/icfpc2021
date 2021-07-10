@@ -83,6 +83,7 @@ class FigureEdge extends Edge {
 
     this.textElem = document.createElement('span');
     this.textElem.style.position = 'absolute';
+    this.textElem.style['pointer-events'] = 'none';
     this.textElem.innerHTML = 'hoge';
 
     // @ts-ignore
