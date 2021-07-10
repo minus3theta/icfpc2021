@@ -407,13 +407,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   isValidAnswer(): boolean {
-    for (const holeEdge of this.holeEdges) {
-      for (const figureEdge of this.edges) {
-        if (this.isIntersect(holeEdge, figureEdge)) {
-          return false;
-        }
-      }
-    }
     if (globalist) {
       let sum = 0;
       for (const edge of this.edges) {
@@ -433,6 +426,13 @@ export class MainScene extends Phaser.Scene {
     } else {
       for (const edge of this.edges) {
         if (!edge.isValidLength()) {
+          return false;
+        }
+      }
+    }
+    for (const holeEdge of this.holeEdges) {
+      for (const figureEdge of this.edges) {
+        if (this.isIntersect(holeEdge, figureEdge)) {
           return false;
         }
       }
