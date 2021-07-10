@@ -481,10 +481,14 @@ export class MainScene extends Phaser.Scene {
   }
 
   saveAnswer(): void {
-    const answer = { vertices: [] };
+    const answer = { vertices: [], bonuses: [] };
     for (const v of this.vertices) {
       // @ts-ignore
       answer.vertices.push([v.x - geta, v.y - geta]);
+    }
+    if (globalist) {
+      // @ts-ignore
+      answer.bonuses.push({ bonus: "GLOBALIST", problem: (<HTMLInputElement>document.getElementById('globalist-problem')).valueAsNumber });
     }
 
     const a = document.createElement('a');
