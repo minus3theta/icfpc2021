@@ -220,11 +220,13 @@ export class MainScene extends Phaser.Scene {
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
+      const roundX = Math.round(pointer.x / displayRate);
+      const roundY = Math.round(pointer.y / displayRate);
+      that.displayPosition(roundX, roundY);
+
       if (that.dragging) {
         if (!that.processing) {
           that.processing = true;
-          const roundX = Math.round(pointer.x / displayRate);
-          const roundY = Math.round(pointer.y / displayRate);
           const v = that.draggingVertex;
           v.x = roundX;
           v.y = roundY;
@@ -572,5 +574,14 @@ export class MainScene extends Phaser.Scene {
     const epsilonText = document.getElementById('epsilon-text');
     // @ts-ignore
     epsilonText.innerHTML = this.problemInfo.epsilon;
+  }
+
+  displayPosition(x: number, y: number): void {
+    const xText = document.getElementById('x-text');
+    const yText = document.getElementById('y-text');
+    // @ts-ignore
+    xText.innerHTML = String(x - geta);
+    // @ts-ignore
+    yText.innerHTML = String(y - geta);
   }
 }
