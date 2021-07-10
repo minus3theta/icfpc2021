@@ -17,13 +17,19 @@ void Main()
 		// ボタンが押されたら
 		if (SimpleGUI::Button(U"Read Input", Vec2(800, 20)))
 		{
-			if (auto file = Dialog::OpenFile()) {
+			if (auto file = Dialog::OpenFile({ FileFilter::JSON() })) {
 				solver = GuiSolver(*file);
+			}
+		}
+		if (SimpleGUI::Button(U"Read Solution", Vec2(800, 100)))
+		{
+			if (auto file = Dialog::OpenFile({ FileFilter::JSON() })) {
+				solver.readSolution(*file);
 			}
 		}
 		if (SimpleGUI::Button(U"Write Solution", Vec2(800, 180)))
 		{
-			if (auto file = Dialog::OpenFile()) {
+			if (auto file = Dialog::SaveFile({ FileFilter::JSON() })) {
 				solver.write(*file);
 			}
 		}
