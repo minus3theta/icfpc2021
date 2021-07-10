@@ -3,6 +3,7 @@ import {
   useSelector as rawUseSelector,
   TypedUseSelectorHook,
 } from 'react-redux';
+import { n_problem } from './config';
 
 export type Pair = [number, number];
 
@@ -28,22 +29,22 @@ export type Problem = {
 
 export type Solution = {
   pose: {
-    bonus?: string,
-    edge?: Pair,
-    problem: number,
-    vertices: Pair[]
-  }
-  dislike: number,
-  solutionId: string
-}
+    bonus?: string;
+    edge?: Pair;
+    problem: number;
+    vertices: Pair[];
+  };
+  dislike: number;
+  solutionId: string;
+};
 
 export type ProblemStatus = {
-  id: number,
-  problem: Problem,
-  need_fetch_problem: boolean,
-  solutions: Solution[],
-  need_fetch_solution: boolean
-}
+  id: number;
+  problem: Problem;
+  need_fetch_problem: boolean;
+  solutions: Solution[];
+  need_fetch_solution: boolean;
+};
 
 export type State = {
   problems: ProblemStatus[];
@@ -55,38 +56,30 @@ const initialProblem = (): Problem => {
     bonuses: [] as Bonus[],
     hole: [] as Hole,
     epsilon: 0,
-    figure: {edges: [], vertices: []} as Figure
-  }
-}
+    figure: { edges: [], vertices: [] } as Figure,
+  };
+};
 
 const initialState: State = {
-  problems: [
-    {
-      id: 1,
-      problem: initialProblem(),
-      need_fetch_problem: true,
-      solutions: [] as Solution[],
-      need_fetch_solution: true,
-    },
-    {
-      id: 2,
-      problem: initialProblem(),
-      need_fetch_problem: true,
-      solutions: [] as Solution[],
-      need_fetch_solution: true,
-    },
-  ],
+  problems: [],
   selected: 0,
 };
+
+for (let i = 0; i < n_problem; i++) {
+  initialState.problems.push({
+    id: i + 1,
+    problem: initialProblem(),
+    need_fetch_problem: true,
+    solutions: [] as Solution[],
+    need_fetch_solution: true,
+  });
+}
 
 const slice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
-    updateProblem: (
-      state,
-      action: PayloadAction<ProblemStatus>
-    ) => ({
+    updateProblem: (state, action: PayloadAction<ProblemStatus>) => ({
       ...state,
       problems: state.problems.map((p) => {
         if (p.id !== action.payload.id) {

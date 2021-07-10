@@ -16,10 +16,18 @@ export default function ProblemCanvas() {
   useEffect(() => {
     if (problem?.need_fetch_problem) {
       const f = async () => {
-        const res = await fetch(location.origin + '/api/problems/' + problem.id);
-        const json = await res.json() as Problem;
-        dispatch(updateProblem({...problem, problem: json, need_fetch_problem: false}))
-      }
+        const res = await fetch(
+          location.origin + '/api/problems/' + problem.id
+        );
+        const json = (await res.json()) as Problem;
+        dispatch(
+          updateProblem({
+            ...problem,
+            problem: json,
+            need_fetch_problem: false,
+          })
+        );
+      };
       f();
     }
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -34,7 +42,5 @@ export default function ProblemCanvas() {
     }
   }, [context, selectedIdx, problem]);
 
-  return (
-    <canvas id="canvas"></canvas>
-  );
+  return <canvas id="canvas"></canvas>;
 }

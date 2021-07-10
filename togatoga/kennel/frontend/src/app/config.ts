@@ -1,3 +1,5 @@
+export const n_problem = 88;
+
 const rate = 5;
 const pad = 20;
 export const grid_col = 160;
