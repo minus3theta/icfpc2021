@@ -5,7 +5,6 @@
 
 #include "GuiSolver.h"
 
-constexpr double cScale = 4.0;
 constexpr double cOffset = 10.0;
 constexpr int cRepeatNum = 4;
 constexpr int cFrame = 60;
@@ -37,10 +36,23 @@ GuiSolver::GuiSolver(const FilePath& file)
     const JSONReader json(file);
     if (!json) throw Error(U"Failed to load input json");
 
+    int max_coord = 0;
+    for (const auto& pt : json[U"hole"].arrayView()) {
+        for (const auto& v : pt.arrayView()) {
+            max_coord = std::max(max_coord, v.get<int32>());
+        }
+    }
+    for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
+        for (const auto& v : pt.arrayView()) {
+            max_coord = std::max(max_coord, v.get<int32>());
+        }
+    }
+    m_scale = 780.f / max_coord;
+
     Array<Vec2> hole_point;
     for (const auto& pt: json[U"hole"].arrayView()){
         auto p = pt.getArray<double>();
-        hole_point.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
+        hole_point.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
     }
     size_t hole_size = hole_point.size();
 
@@ -51,7 +63,7 @@ GuiSolver::GuiSolver(const FilePath& file)
 
     for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
         auto p = pt.getArray<double>();
-        m_pos.emplace_back(cScale * p[0] + cOffset, cScale * p[1] + cOffset);
+        m_pos.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
     }
 
     for (const auto& pt : json[U"figure"][U"edges"].arrayView()) {
@@ -69,9 +81,10 @@ GuiSolver::GuiSolver(const FilePath& file)
 }
 
 GuiSolver::GuiSolver()
-    : m_vel_reduce(0.99)
-    , m_len_fix(0.1)
-    , m_col_fix(0.2)
+    : m_vel_reduce(0.995)
+    , m_len_fix(0.8)
+    , m_col_fix(0.8)
+    , m_scale(1.0)
     , m_selected(-1)
 {}
 
@@ -80,8 +93,8 @@ void GuiSolver::readSolution(const FilePath& file) {
     size_t idx = 0;
     for (const auto& pt : json[U"vertices"].arrayView()) {
         auto p = pt.getArray<double>();
-        m_pos[idx].x = cScale * p[0] + cOffset;
-        m_pos[idx].y = cScale * p[1] + cOffset;
+        m_pos[idx].x = m_scale * p[0] + cOffset;
+        m_pos[idx].y = m_scale * p[1] + cOffset;
         m_vel[idx].x = 0.0;
         m_vel[idx].y = 0.0;
         m_move[idx] = true;
@@ -94,7 +107,7 @@ void GuiSolver::write(const FilePath& file) {
     writer << U"{";
     writer << U"    \"vertices\": [";
     for (int i = 0; i < m_pos.size(); i++) {
-        writer << U"        [" << (m_pos[i].x - cOffset) / cScale << U", " << (m_pos[i].y - cOffset) / cScale << (i == m_pos.size() - 1 ? U"]" : U"],");
+        writer << U"        [" << (m_pos[i].x - cOffset) / m_scale << U", " << (m_pos[i].y - cOffset) / m_scale << (i == m_pos.size() - 1 ? U"]" : U"],");
     }
     writer << U"    ]";
     writer << U"}";
@@ -125,13 +138,12 @@ void GuiSolver::update() {
         }
     } else if (MouseL.pressed() && m_selected != -1) {
         m_vel[m_selected].set(cFrame * Cursor::DeltaF());
-        // 掴んでる点がホール内にあって、マウスカーソルがホール外に出たら選択解除
-        // if (m_hole.contains(m_pos[m_selected]) && !m_hole.contains(Cursor::PosF())) m_selected = -1;
+
     } else {
         m_selected = -1;
     }
 
-    if (!MouseL.down() && MouseR.down()) {
+    if (MouseR.down()) {
         auto pos = Cursor::PosF();
         int32 nearest = -1;
         double min_dist = 1e12;
@@ -144,8 +156,9 @@ void GuiSolver::update() {
         }
         if (min_dist < 16.0) {
             m_move[nearest] = !m_move[nearest];
+            // 選択中の頂点を固定したら選択解除
+            if (nearest == m_selected) m_selected = -1;
         }
-
     }
 
     auto lineInHold = [&](const Line& line) {
@@ -169,13 +182,32 @@ void GuiSolver::update() {
             m_vel[i].y *= m_vel_reduce;
         }
         Array<MinMaxVec> m_vel_dif(m_pos.size());
+        // 点ごとにホール内へ押し込む
+        for (int i = 0; i < m_pos.size(); i++) {
+            if (m_hole.contains(m_pos[i])) continue;
+            double min_depth = 1e12;
+            Vec2 closest;
+            for (auto& l : m_edge_line) {
+                Vec2 closest_src = l.closest(m_pos[i]);
+                double dist = closest_src.distanceFromSq(m_pos[i]);
+                if (dist < min_depth) {
+                    min_depth = dist;
+                    closest = closest_src;
+                }
+            }
+            if (min_depth < 0.01) continue;
+            min_depth = sqrt(min_depth);
+            Vec2 dir = closest - m_pos[i];
+            dir.normalize();
+            m_vel_dif[i].update(dir, min_depth);
+        }
         for(int i=0;i<m_edge.size();i++){
             const auto& e = m_edge[i];
             if (!m_move[e.x] && !m_move[e.y]) continue;
             const auto& src = m_pos[e.x];
             const auto& dst = m_pos[e.y];
             auto line = Line(src, dst);
-            // 枠内に収める処理。バグってる？
+            // 線分 vs ホール枠のコリジョン。これはダメそう
             /*
             if (lineInHold(line)) {
                 for (auto& l : m_edge_line) {
@@ -289,9 +321,11 @@ void GuiSolver::update() {
         line.draw(1.0, !contain ? Palette::Red : min_dist <= cur_dist && cur_dist <= max_dist ? Palette::Blue : Palette::Orange);
     }
     for (int i = 0; i < m_pos.size(); i++) {
-        if (!m_move[i]) Circle(m_pos[i], 1.5).draw(Palette::Skyblue);
-    }
-    if (m_selected != -1) {
-        Circle(m_pos[m_selected], 2.5).draw(Palette::Black);
+        if (!m_move[i]) {
+            Shape2D::Cross(6.0, 2.0, m_pos[i]).draw(Palette::Black);
+        }
+        else {
+            Circle(m_pos[i], 4.0).draw(i == m_selected ? Palette::Black : Palette::White);
+        }
     }
 }
