@@ -34,10 +34,17 @@ type Figure struct {
 	Vertices []Vertex `json:"vertices"`
 }
 
+type Bonus struct {
+	Bonus string `json:"bonus"`
+	Problem int `json:"problem"`
+	Position Vertex `json:"position"`
+}
+
 type Problem struct {
 	Hole []Vertex `json:"hole"`
 	Figure Figure `json:"figure"`
 	Epsilon int `json:"epsilon"`
+	Bonuses []Bonus `json:"bonuses"`
 }
 
 var db *pgx.Conn
@@ -61,7 +68,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	loadProblems(e.Logger)
+	if err := loadProblems(e.Logger); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to load problems: %v\n", err)
+		os.Exit(1)
+	}
 
 	defer db.Close(context.Background())
 
@@ -72,11 +82,11 @@ func main() {
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
-func loadProblems(l echo.Logger) {
+func loadProblems(l echo.Logger) error {
 	files, err := filepath.Glob("problems/*.json")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to list problem files: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	for _, file := range files {
@@ -86,21 +96,28 @@ func loadProblems(l echo.Logger) {
 		problemFile, err := ioutil.ReadFile(file)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to read problem file: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		var problem Problem
 		json.Unmarshal(problemFile, &problem)
 
 		if err := insertProblem(problemId, problem, l); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to insert problem to DB: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func insertProblem(problemId int, problem Problem, l echo.Logger) error {
 	problemSql := `INSERT INTO problems(id, problem) VALUES ($1, $2)
 	ON CONFLICT(id) DO UPDATE SET id = $1`
+	bonusSelectSql := `SELECT id from bonuses WHERE source = $1 and source_index = $2`
+	bonusUpdateSql := `UPDATE bonuses SET source = $1, source_index = $2, destination = $3,
+	bonus = $4, position = $5 WHERE id = $6`
+	bonusInsertSql := `INSERT INTO bonuses(source, source_index, destination, bonus, position)
+	VALUES ($1, $2, $3, $4, $5)`
 
 	tx, err := db.Begin(context.Background())
 
@@ -113,6 +130,30 @@ func insertProblem(problemId int, problem Problem, l echo.Logger) error {
 	if _, err := tx.Exec(context.Background(), problemSql, problemId, problem); err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to insert problem to DB: %v\n", err)
 		return err
+	}
+
+	for index, bonus := range problem.Bonuses {
+		rows, err := tx.Query(context.Background(), bonusSelectSql, problemId, index)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to fetch bonuses from DB: %v\n", err)
+			return err
+		}
+		if rows.Next() {
+			var bonusId int
+			if err := rows.Scan(&bonusId); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to scan bonus ID: %v\n", err)
+				return err
+			}
+			if _, err := tx.Exec(context.Background(), bonusUpdateSql, problemId, index, bonus.Problem, bonus.Bonus, bonus.Position, bonusId); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to update bonuses in DB: %v\n", err)
+				return err
+			}
+		} else {
+			if _, err := tx.Exec(context.Background(), bonusInsertSql, problemId, index, bonus.Problem, bonus.Bonus, bonus.Position); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to insert bonus to DB: %v\n", err)
+				return err
+			}
+		}
 	}
 
 	l.Debug("Inserted problem: ", problemId)

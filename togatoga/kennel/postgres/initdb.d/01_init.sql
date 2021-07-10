@@ -13,14 +13,16 @@ CREATE TABLE problems (
     problem JSON NOT NULL
 );
 
-DELETE TYPE IF EXISTS bonus_type;
+DROP TYPE IF EXISTS bonus_type;
 CREATE TYPE bonus_type AS ENUM('GLOBALIST', 'BREAK_A_LEG');
 DROP TABLE IF EXISTS bonuses;
 CREATE TABLE bonuses (
     id serial NOT NULL PRIMARY KEY,
     source INT NOT NULL,
+    source_index INT NOT NULL,
     destination INT NOT NULL,
-    bonus bonus_type NOT NULL
+    bonus bonus_type NOT NULL,
+    position JSON NOT NULL
 );
 
 DROP TABLE IF EXISTS used_bonuses;
