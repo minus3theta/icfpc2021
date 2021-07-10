@@ -245,7 +245,7 @@ export class MainScene extends Phaser.Scene {
   private holeEdges;
   private bonusVertices;
 
-  private history = [];
+  private history;
 
   private dragging = false;
   private selectedVertices = [];
@@ -258,6 +258,8 @@ export class MainScene extends Phaser.Scene {
   private selectRectangleGraphic;
 
   create(data): void {
+    this.history = [];
+
     this.cleanAbsoluteTextWrapper();
     this.initDisplayRate(data.problemInfo);
     this.drawLattice();
