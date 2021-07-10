@@ -26,6 +26,15 @@ class Handler(BaseHTTPRequestHandler):
             with open(f'./json/{i}.json') as f:
                 result_json = json.load(f)
                 self.wfile.write(json.dumps(result_json).encode('UTF-8'))
+        elif re.search('^/api/problems/\d*/solutions', self.path) is not None:
+            m = re.search('^/api/problems/(\d*)/solutions', self.path)
+            i = int(m.groups()[0])
+            self.send_response(200)
+            self.send_header('Content-type','application/json')
+            self.end_headers()
+            with open(f'./json/solutions_{i}.json') as f:
+                result_json = json.load(f)
+                self.wfile.write(json.dumps(result_json).encode('UTF-8'))
 
     def do_POST(self):
         service_names = []
