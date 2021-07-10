@@ -73,8 +73,8 @@ func main() {
 }
 
 func loadProblems(l echo.Logger) {
-	select_sql := "SELECT id FROM problems WHERE id = $1"
-	problem_sql := "INSERT INTO problems(id, problem) VALUES ($1, $2)"
+	problem_sql := `INSERT INTO problems(id, problem) VALUES ($1, $2)
+	ON CONFLICT(id) DO UPDATE SET id = $1`
 
 	files, err := filepath.Glob("problems/*.json")
 	if err != nil {
@@ -94,32 +94,10 @@ func loadProblems(l echo.Logger) {
 		var problem Problem
 		json.Unmarshal(problemFile, &problem)
 
-		tx, err := db.Begin(context.Background())
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to begin transaction: %v\n", err)
-			os.Exit(1)
-		}
-		defer tx.Rollback(context.Background())
-
-		rows, err := tx.Query(context.Background(), select_sql, problemId)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to select problems from DB: %v\n", err)
-			os.Exit(1)
-		}
-		if rows.Next() {
-			continue
-		}
-		if _, err := tx.Exec(context.Background(), problem_sql, problemId, problem); err != nil {
+		if _, err := db.Exec(context.Background(), problem_sql, problemId, problem); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to insert problem to DB: %v\n", err)
-			tx.Rollback(context.Background())
 			os.Exit(1)
 		}
-		if err := tx.Commit(context.Background()); err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to commit: %v\n", err)
-			tx.Rollback(context.Background())
-			os.Exit(1)
-}
 	}
 }
 
