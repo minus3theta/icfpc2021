@@ -61,15 +61,18 @@ public:
 
   void preprocess() {
 
+    
     for (int i = 0; i < hole_internal_points.size(); i++) {
       point_to_index[hole_internal_points[i]] = i;
     }
-
+    assert(point_to_index.size() == hole_internal_points.size());
+    neighbor_figs.resize(figure_num);
     for (const auto &edge : edges) {
       int a = edge.first;
       int b = edge.second;
-      neighbor_figs[a - 1].push_back(b - 1);
-      neighbor_figs[b - 1].push_back(a - 1);
+
+      neighbor_figs[a].push_back(b);
+      neighbor_figs[b].push_back(a);
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
@@ -86,14 +89,27 @@ public:
             break;
           }
         }
+        // int x1 = xy1.first;
+        // int y1 = xy1.second;
+        // int x2 = xy2.first;
+        // int y2 = xy2.second;
+        // if (x1 == 1 && y1 == 12 && x2 == 40 && y2 == 0) {
+        //   cout << x1 << " " << y1 << " " << x2 << " " << y2 << endl;
+        //   cout << "ok" << ok << endl;
+        //   assert(false);
+
+        // }
         if (!ok) {
           intersected_points.insert(mp(xy1, xy2));
           intersected_points.insert(mp(xy2, xy1));
         }
       }
     }
+    cerr << "Done!! " << __func__ << endl;
   }
   int sat_index_from_fig_and_point(int fig_idx, pii xy) {
+    //cout << fig_idx << " " << xy.first << " " << xy.second << endl;
+    assert(point_to_index.count(xy) > 0);
     int idx = point_to_index[xy];
     int sat_index = fig_idx * point_to_index.size() + idx + 1;
     assert(sat_index != 0);
@@ -118,18 +134,28 @@ public:
     const ll td = (x1 - x2) * (y4 - y1) + (y1 - y2) * (x1 - x4);
     return ta * tb < 0 && tc * td < 0;
   }
+  void input_internal_points() {
+    int internal_point_num;
+    cin >> internal_point_num;
+    hole_internal_points.resize(internal_point_num);
+    for (auto &point : hole_internal_points) {
+      cin >> point.first >> point.second;
+    }
+    cerr << "Done!! " << __func__ << endl;
+  }
+  
   void solve() {
     input();
     // 内点全列挙
-    // hole_internal_points;
+    input_internal_points();
     preprocess();
-
+  
     // 制約を生成
+    //cerr << figure_num << " " << hole_internal_points.size() << endl;
     for (int i = 0; i < figure_num; i++) {
       // figの一つの頂点が必ずどれか一つinternal_pointsに存在
       {
         vector<int> clause;
-
         // (x_i_0_0 or x_i_0_1 or )
         for (int j = 0; j < hole_internal_points.size(); j++) {
           clause.push_back(
@@ -153,41 +179,63 @@ public:
         }
       }
 
-      //隣接頂点
-      for (const int j : neighbor_figs[i]) {
-        //辺の長さ制約
-        pii xy1 = figure_points[i];
-        pii xy2 = figure_points[j];
-        int previous_dist = calc_dist(xy1, xy2);
-        for (int k = 0; k < hole_internal_points.size(); k++) {
-          pii xy1 = figure_points[k];
-          for (int l = 0; l < hole_internal_points.size(); l++) {
-            pii xy2 = figure_points[l];
-            bool ok = true;
-            // 二頂点が既存のholeのedgeと交わる
-            if (intersected_points.count(mp(xy1, xy2))) {
-              ok = false;
-            } else {
-              int new_dist = calc_dist(xy1, xy2);
-              ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
-              ll right_value = epsilon * previous_dist;
-              // 辺の長さが超える
-              if (left_value > right_value) {
-                ok = false;
-              }
-            }
+      cerr << "Done!! " << sat_clauses.size() << endl;
+    }
+
+    for (int i = 0; i < hole_internal_points.size(); i++) {
+      pii xy1 = hole_internal_points[i];
+      for (int j = i; j < hole_internal_points.size(); j++) {
+        pii xy2 = hole_internal_points[j];
+        bool ok = true;
+        if (intersected_points.count(mp(xy1, xy2))) {
+          ok = false;
+        }
+        ll new_dist = calc_dist(xy1, xy2);
+        for (int k = 0; k < figure_num; k++) {
+          pii xy3 = figure_points[k];
+          for (int l : neighbor_figs[k]) {
+            
+            pii xy4 = figure_points[l];
             if (!ok) {
-              int sat_index1 = sat_index_from_fig_and_point(i, xy1);
-              int sat_index2 = sat_index_from_fig_and_point(j, xy2);
+              int sat_index1 = sat_index_from_fig_and_point(k, xy1);
+              int sat_index2 = sat_index_from_fig_and_point(l, xy2);
               vector<int> bin_clause;
               bin_clause.push_back(-sat_index1);
               bin_clause.push_back(-sat_index2);
+              sat_clauses.push_back(bin_clause);
+              continue;
+            }
+            ll previous_dist = calc_dist(xy3, xy4);
+
+            ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
+            ll right_value = epsilon * previous_dist;
+            // 辺の長さが超える
+            if (left_value > right_value) {
+              int sat_index1 = sat_index_from_fig_and_point(k, xy1);
+              int sat_index2 = sat_index_from_fig_and_point(l, xy2);
+              vector<int> bin_clause;
+              bin_clause.push_back(-sat_index1);
+              bin_clause.push_back(-sat_index2);
+              sat_clauses.push_back(bin_clause);
             }
           }
         }
       }
     }
+    //cerr << sat_clauses.size() << endl;
+    output_cnf();
   }
+
+  void output_cnf() {
+      cout << "p cnf " << figure_num * point_to_index.size() + 1 << " " << sat_clauses.size() << endl;
+      for (const auto &clause: sat_clauses) {
+          for (int v : clause) {
+              cout << v << " ";
+          }
+          cout << "0" << endl;
+      }
+  }
+
   void input() {
     cin >> hole_num;
     hole_points.resize(hole_num);
@@ -206,6 +254,7 @@ public:
       cin >> point.first >> point.second;
     }
     cin >> epsilon;
+    cerr << "Done!! " << __func__ << endl;
   }
   // inputs
   int hole_num;
@@ -223,10 +272,11 @@ public:
   set<pair<pll, pll>> intersected_points;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
   cin.tie(0);
   ios::sync_with_stdio(false);
   Solver s = Solver();
   s.solve();
+  
   return 0;
 }
