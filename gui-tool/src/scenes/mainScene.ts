@@ -1,19 +1,23 @@
 import {canvasSize} from "../main";
+import { baneOptimize } from "./kaku";
 
 const geta = 2;
 let displayRate = 5;
 let displayStretchRateFlag = false;
 
-class Vertex {
+export class Vertex {
   public x;
   public y;
   public edges;
   public circle;
   public graphics;
+  public id;
 
-  constructor(x: number, y: number, scene: Phaser.Scene) {
+  constructor(x: number, y: number, scene: Phaser.Scene, id: number) {
     this.x = x;
     this.y = y;
+    this.id = id;
+    this.edges = [];
     this.graphics = scene.add.graphics({ fillStyle: { color: 0x00ff00 } })
     this.graphics.setAlpha(0);
     this.edges = [];
@@ -36,6 +40,13 @@ class Vertex {
 
   deactivateCircle(): void {
     this.graphics.setAlpha(0);
+  }
+
+  drawConnectedEdges(): void {
+    for (const e of this.edges) {
+      e.updateLineStyle();
+      e.draw();
+    }
   }
 }
 
@@ -76,7 +87,7 @@ class HoleEdge extends Edge {
   }
 }
 
-class FigureEdge extends Edge {
+export class FigureEdge extends Edge {
   public baseLength;
   public minLength;
   public maxLength;
@@ -131,8 +142,8 @@ class FigureEdge extends Edge {
     return this.minLength <= len && len <= this.maxLength;
   }
 
-  updateLineStyle(scene: Phaser.Scene): void {
-    this.graphics.clear();
+  updateLineStyle(): void {
+    this.graphics.destroy();
     const len = this.calcLength();
     let width = 4;
     let color = 0xFF00FF;
@@ -157,7 +168,7 @@ class FigureEdge extends Edge {
       alpha = 0.6;
     }
 
-    this.graphics = scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.graphics = this.scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
     this.updateLine();
   }
 }
@@ -192,6 +203,7 @@ export class MainScene extends Phaser.Scene {
     this.applyGeta();
     this.displayEpsilon();
     this.updateSaveButton();
+    this.optimizeButton();
 
     this.initHole();
     this.initVerticesAndEdges();
@@ -211,7 +223,7 @@ export class MainScene extends Phaser.Scene {
           v.y = roundY;
           that.drawHole();
           v.resetCircle();
-          that.drawFigure();
+          v.drawConnectedEdges();
           that.displayDislikes();
           that.manageSaveButton();
           that.processing = false;
@@ -280,7 +292,7 @@ export class MainScene extends Phaser.Scene {
     for (let i = 0; i < origVertices.length; i++) {
       this.vertices.push(new Vertex(origVertices[i][0],
                                     origVertices[i][1],
-                                    this));
+                                    this, i));
     }
 
     this.edges = [];
@@ -325,7 +337,7 @@ export class MainScene extends Phaser.Scene {
 
     this.holeVertices = [];
     for (let i = 0; i < hole.length; i++) {
-      this.holeVertices.push(new Vertex(hole[i][0], hole[i][1], this));
+      this.holeVertices.push(new Vertex(hole[i][0], hole[i][1], this, i));
     }
 
     this.holeEdges = [];
@@ -338,7 +350,7 @@ export class MainScene extends Phaser.Scene {
 
   drawFigure(): void {
     for (const edge of this.edges) {
-      edge.updateLineStyle(this);
+      edge.updateLineStyle();
       edge.draw();
     }
   }
@@ -435,6 +447,12 @@ export class MainScene extends Phaser.Scene {
     document.body.removeChild(a);
   }
 
+  optimize(): void {
+    baneOptimize(this.vertices, this.edges, this.draggingVertex);
+    this.drawFigure();
+    this.manageSaveButton();
+  }
+
   manageSaveButton(): void {
     const saveButton = document.getElementById('save-button');
     if (this.isValidAnswer()) {
@@ -463,6 +481,22 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newSaveButton.addEventListener('click', this.saveAnswer.bind(this));
+  }
+
+  optimizeButton(): void {
+    const optimizeButtonWrapper = document.getElementById('optimize-button-wrapper') as HTMLSpanElement;
+    const optimizeButton = document.getElementById('optimize-button') as HTMLButtonElement;
+
+    optimizeButtonWrapper.removeChild(optimizeButton);
+
+    const newOptimizeButton = document.createElement('input') as HTMLButtonElement;
+    newOptimizeButton.id = 'optimize-button';
+    newOptimizeButton.type = 'button';
+    newOptimizeButton.value = 'Optimize!!';
+    newOptimizeButton.disabled = false;
+    optimizeButtonWrapper.appendChild(newOptimizeButton);
+
+    newOptimizeButton.addEventListener('click', this.optimize.bind(this));
   }
 
   displayEpsilon(): void {

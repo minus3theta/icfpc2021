@@ -51,9 +51,9 @@ export function splitPwr(n1: Point, n2: Point): Point {
 
 export function bane(graph: Graph, epsilon: number, moved: number) {
   const min_e = 0;
-  const k = 0.8;
+  const k = 1.0;
   const dt = 1;
-  const dc = 0.4;
+  const dc = 0.9;
   const n_node = graph.nodes.length;
   const sp = new Array(n_node) as Point[];
   for (let i = 0; i < sp.length; i++) {
@@ -70,7 +70,7 @@ export function bane(graph: Graph, epsilon: number, moved: number) {
         const new_d = dist(n1.p, n2.p);
         let pwr = 0;
         if (Math.abs(new_d/orig_d - 1) > (epsilon/1000000)) {
-          pwr = k * (new_d - orig_d);
+          pwr = k * (Math.sqrt(new_d) - Math.sqrt(orig_d));
         }
         const [x, y] = splitPwr(n1.p, n2.p);
         p[0] += pwr * x;
