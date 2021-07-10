@@ -73,9 +73,6 @@ func main() {
 }
 
 func loadProblems(l echo.Logger) {
-	problem_sql := `INSERT INTO problems(id, problem) VALUES ($1, $2)
-	ON CONFLICT(id) DO UPDATE SET id = $1`
-
 	files, err := filepath.Glob("problems/*.json")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to list problem files: %v\n", err)
@@ -94,11 +91,33 @@ func loadProblems(l echo.Logger) {
 		var problem Problem
 		json.Unmarshal(problemFile, &problem)
 
-		if _, err := db.Exec(context.Background(), problem_sql, problemId, problem); err != nil {
+		if err := insertProblem(problemId, problem, l); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to insert problem to DB: %v\n", err)
 			os.Exit(1)
 		}
 	}
+}
+
+func insertProblem(problemId int, problem Problem, l echo.Logger) error {
+	problemSql := `INSERT INTO problems(id, problem) VALUES ($1, $2)
+	ON CONFLICT(id) DO UPDATE SET id = $1`
+
+	tx, err := db.Begin(context.Background())
+
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(context.Background())
+
+	if _, err := tx.Exec(context.Background(), problemSql, problemId, problem); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to insert problem to DB: %v\n", err)
+		return err
+	}
+
+	l.Debug("Inserted problem: ", problemId)
+
+	return tx.Commit(context.Background())
 }
 
 // Handler
