@@ -1,16 +1,16 @@
 version: "3.3"
-services: 
+services:
     postgres:
         image: postgres:13
         container_name: postgres
-        ports: 
+        ports:
             - 5432:5432
-        environment: 
+        environment:
             POSTGRES_USER: root
             POSTGRES_PASSWORD: root
             POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
             POSTGRES_DB: "root"
-        volumes: 
+        volumes:
             - ./postgres/initdb.d:/docker-entrypoint-initdb.d
             - ./postgres/postgres_data:/var/lib/postgresql/data
             - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
@@ -20,7 +20,9 @@ services:
         container_name: api
         ports:
             - 80:1323
-        environment: 
+        environment:
             DATABASE_URL: "postgres://root:root@postgres:5432/root"
         volumes:
             - ./api:/go/src/app
+        depends_on:
+            - postgres
