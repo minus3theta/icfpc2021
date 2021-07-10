@@ -19,10 +19,11 @@ class Handler(BaseHTTPRequestHandler):
             with open('../dist/index.js') as f:
                 self.wfile.write(f.read().encode('UTF-8'))
         elif re.search('^/api/problems/\d*$', self.path) is not None:
+            i = int(self.path[14:])
             self.send_response(200)
             self.send_header('Content-type','application/json')
             self.end_headers()
-            with open('./json/1.json') as f:
+            with open(f'./json/{i}.json') as f:
                 result_json = json.load(f)
                 self.wfile.write(json.dumps(result_json).encode('UTF-8'))
 

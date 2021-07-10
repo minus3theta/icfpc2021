@@ -88,9 +88,8 @@ export function updateBoard(
   problem: Problem,
   ctx: CanvasRenderingContext2D
 ): void {
-  const p = problem.problem;
   ctx.clearRect(0, 0, width, height);
   drawGrid(ctx);
-  drawHole(p.hole, ctx);
-  drawFigure(p.figure, p.epsilon, ctx);
+  drawHole(problem.hole, ctx);
+  drawFigure(problem.figure, problem.epsilon, ctx);
 }
