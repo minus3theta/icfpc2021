@@ -5,7 +5,7 @@
 
 #include "GuiSolver.h"
 
-constexpr double cScale = 4.0;
+constexpr double cScale = 3.0;
 constexpr double cOffset = 10.0;
 constexpr int cRepeatNum = 4;
 constexpr int cFrame = 60;
@@ -125,13 +125,12 @@ void GuiSolver::update() {
         }
     } else if (MouseL.pressed() && m_selected != -1) {
         m_vel[m_selected].set(cFrame * Cursor::DeltaF());
-        // 掴んでる点がホール内にあって、マウスカーソルがホール外に出たら選択解除
-        // if (m_hole.contains(m_pos[m_selected]) && !m_hole.contains(Cursor::PosF())) m_selected = -1;
+
     } else {
         m_selected = -1;
     }
 
-    if (!MouseL.down() && MouseR.down()) {
+    if (MouseR.down()) {
         auto pos = Cursor::PosF();
         int32 nearest = -1;
         double min_dist = 1e12;
@@ -144,8 +143,9 @@ void GuiSolver::update() {
         }
         if (min_dist < 16.0) {
             m_move[nearest] = !m_move[nearest];
+            // 選択中の頂点を固定したら選択解除
+            if (nearest == m_selected) m_selected = -1;
         }
-
     }
 
     auto lineInHold = [&](const Line& line) {
@@ -308,9 +308,11 @@ void GuiSolver::update() {
         line.draw(1.0, !contain ? Palette::Red : min_dist <= cur_dist && cur_dist <= max_dist ? Palette::Blue : Palette::Orange);
     }
     for (int i = 0; i < m_pos.size(); i++) {
-        if (!m_move[i]) Circle(m_pos[i], 1.5).draw(Palette::Skyblue);
-    }
-    if (m_selected != -1) {
-        Circle(m_pos[m_selected], 2.5).draw(Palette::Black);
+        if (!m_move[i]) {
+            Shape2D::Cross(6.0, 2.0, m_pos[i]).draw(Palette::Black);
+        }
+        else {
+            Circle(m_pos[i], 4.0).draw(i == m_selected ? Palette::Black : Palette::White);
+        }
     }
 }
