@@ -277,6 +277,7 @@ export class MainScene extends Phaser.Scene {
     this.updateDisplayIdCheckbox();
     this.updateVerticalFlipButton();
     this.updateHorizontalFlipButton();
+    this.updateRotateButton();
     this.manageUndoButton();
     this.optimizeButton();
 
@@ -462,7 +463,6 @@ export class MainScene extends Phaser.Scene {
     if (!this.problemInfo.bonuses) return;
 
     for (const bonus of this.problemInfo.bonuses) {
-      console.log(bonus);
       this.bonusVertices.push(new BonusVertex(bonus.position[0] + geta, bonus.position[1] + geta, bonus.bonus, bonus.problem, this));
     }
   }
@@ -672,6 +672,7 @@ export class MainScene extends Phaser.Scene {
 
   verticalFlip(): void {
     if (this.selectedVertices.length <= 1) return;
+    this.pushHistory();
     let minY = 10000;
     let maxY = -10000;
     for (const v of this.selectedVertices) {
@@ -684,8 +685,6 @@ export class MainScene extends Phaser.Scene {
       // @ts-ignore
       v.y = maxY - (v.y - minY)
       // @ts-ignore
-      v.select();
-      // @ts-ignore
       v.resetCircle();
     }
     this.drawFigure();
@@ -694,6 +693,7 @@ export class MainScene extends Phaser.Scene {
 
   horizontalFlip(): void {
     if (this.selectedVertices.length <= 1) return;
+    this.pushHistory();
     let minX = 10000;
     let maxX = -10000;
     for (const v of this.selectedVertices) {
@@ -706,7 +706,43 @@ export class MainScene extends Phaser.Scene {
       // @ts-ignore
       v.x = maxX - (v.x - minX)
       // @ts-ignore
-      v.select();
+      v.resetCircle();
+    }
+    this.drawFigure();
+    this.drawBonusVertices();
+  }
+
+  rotate(): void {
+    if (this.selectedVertices.length <= 1) return;
+    let minX = 10000;
+    let maxX = -10000;
+    let minY = 10000;
+    let maxY = -10000;
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      minX = Math.min(minX, v.x);
+      // @ts-ignore
+      maxX = Math.max(maxX, v.x);
+      // @ts-ignore
+      minY = Math.min(minY, v.y);
+      // @ts-ignore
+      maxY = Math.max(maxY, v.y);
+    }
+    const rot = <HTMLInputElement>document.getElementById('rotate-value');
+    if (!rot) return;
+    this.pushHistory();
+    const rad = parseInt(rot.value) / 180 * Math.PI;
+    const centerX = (maxX + minX) / 2;
+    const centerY = (maxY + minY) / 2;
+    for (const v of this.selectedVertices) {
+      // @ts-ignore
+      const dx = v.x - centerX;
+      // @ts-ignore
+      const dy = v.y - centerY;
+      // @ts-ignore
+      v.x = Math.round(centerX + dx*Math.cos(rad) - dy*Math.sin(rad));
+      // @ts-ignore
+      v.y = Math.round(centerY + dx*Math.sin(rad) + dy*Math.cos(rad));
       // @ts-ignore
       v.resetCircle();
     }
@@ -764,7 +800,8 @@ export class MainScene extends Phaser.Scene {
   manageFlipButtons(): void {
     const buttons = [
       <HTMLInputElement>document.getElementById('vertical-flip-button'),
-      <HTMLInputElement>document.getElementById('horizontal-flip-button')
+      <HTMLInputElement>document.getElementById('horizontal-flip-button'),
+      <HTMLInputElement>document.getElementById('rotate-button')
     ];
     for (const button of buttons) button.disabled = !this.areaSelected;
   }
@@ -832,6 +869,7 @@ export class MainScene extends Phaser.Scene {
     const newVerticalFlipButton = document.createElement('input');
     newVerticalFlipButton.id = 'vertical-flip-button';
     newVerticalFlipButton.type = 'button';
+    newVerticalFlipButton.disabled = true;
     newVerticalFlipButton.value = '縦反転';
     // @ts-ignore
     verticalFlipButtonWrapper.appendChild(newVerticalFlipButton);
@@ -853,7 +891,8 @@ export class MainScene extends Phaser.Scene {
     const newHorizontalFlipButton = document.createElement('input');
     newHorizontalFlipButton.id = 'horizontal-flip-button';
     newHorizontalFlipButton.type = 'button';
-    newHorizontalFlipButton.value = '縦反転';
+    newHorizontalFlipButton.disabled = true;
+    newHorizontalFlipButton.value = '横反転';
     // @ts-ignore
     horizontalFlipButtonWrapper.appendChild(newHorizontalFlipButton);
 
@@ -922,6 +961,28 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newUploadAnswerButton.addEventListener('change', this.uploadAnswer.bind(this));
+  }
+
+  updateRotateButton(): void {
+    const rotateButtonWrapper = document.getElementById('rotate-button-wrapper');
+    const rotateButton = document.getElementById('rotate-button');
+
+    // @ts-ignore
+    rotateButtonWrapper.removeChild(rotateButton);
+
+    const newRotateButton = document.createElement('input');
+    newRotateButton.id = 'rotate-button';
+    newRotateButton.type = 'button';
+    newRotateButton.disabled = true;
+    newRotateButton.value = '回転';
+    // @ts-ignore
+    rotateButtonWrapper.appendChild(newRotateButton);
+
+    // @ts-ignore
+    rotateButtonWrapper.appendChild(newRotateButton);
+
+    // @ts-ignore
+    newRotateButton.addEventListener('click', this.rotate.bind(this));
   }
 
   updateGlobalistCheckbox(): void {
