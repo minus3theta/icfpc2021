@@ -13,6 +13,7 @@ CREATE TABLE problems (
     problem JSON NOT NULL
 );
 
+DELETE TYPE IF EXISTS bonus_type;
 CREATE TYPE bonus_type AS ENUM('GLOBALIST', 'BREAK_A_LEG');
 DROP TABLE IF EXISTS bonuses;
 CREATE TABLE bonuses (
