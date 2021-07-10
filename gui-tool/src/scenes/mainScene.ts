@@ -9,11 +9,14 @@ let globalist = false;
 export class Vertex {
   public x;
   public y;
+  public prevX;
+  public prevY;
   public edges;
   public circle;
   public graphics;
   public id;
   public textElem;
+  public selected;
 
   constructor(x: number, y: number, scene: Phaser.Scene, id: number) {
     this.x = x;
@@ -50,22 +53,26 @@ export class Vertex {
     }
   }
 
-  activateCircle(): void {
+  drawConnectedEdges(): void {
+    for (const e of this.edges) {
+      e.updateLineStyle();
+      e.draw();
+    }
+  }
+
+  select(): void {
+    this.selected = true;
+    this.prevX = this.x;
+    this.prevY = this.y;
     this.graphics.setAlpha(1);
     for (const e of this.edges) {
       e.drawRateFlag = true;
     }
   }
 
-  deactivateCircle(): void {
+  unselect(): void {
+    this.selected = false;
     this.graphics.setAlpha(0);
-  }
-
-  drawConnectedEdges(): void {
-    for (const e of this.edges) {
-      e.updateLineStyle();
-      e.draw();
-    }
   }
 }
 
@@ -210,8 +217,14 @@ export class MainScene extends Phaser.Scene {
   private history = [];
 
   private dragging = false;
-  private draggingVertex;
+  private selectedVertices = [];
+  private selecting = false;
+  private areaSelected = false;
   private processing = false;
+
+  private dragBasePoint;
+  private selectBasePoint;
+  private selectRectangleGraphic;
 
   create(data): void {
     this.cleanAbsoluteTextWrapper();
@@ -240,6 +253,11 @@ export class MainScene extends Phaser.Scene {
     this.manageGlobalist();
     this.manageDisplayId();
 
+    this.selectRectangleGraphic = this.add.graphics({
+      lineStyle: { width: 4, color: 0x666666 },
+      fillStyle: { color: 0xAAAAAA, alpha: 0.5 }
+    });
+
     const that = this;
     this.input.on('pointermove', function(pointer) {
       const roundX = Math.round(pointer.x / displayRate);
@@ -249,15 +267,36 @@ export class MainScene extends Phaser.Scene {
       if (that.dragging) {
         if (!that.processing) {
           that.processing = true;
-          const v = that.draggingVertex;
-          v.x = roundX;
-          v.y = roundY;
+          const dx = roundX - that.dragBasePoint[0];
+          const dy = roundY - that.dragBasePoint[1];
+          for (const v of that.selectedVertices) {
+            // @ts-ignore
+            v.x = v.prevX + dx;
+            // @ts-ignore
+            v.y = v.prevY + dy;
+            // @ts-ignore
+            v.resetCircle();
+            // @ts-ignore
+            v.drawConnectedEdges();
+          }
           that.drawHole();
-          v.resetCircle();
-          v.drawConnectedEdges();
           that.displayDislikes();
           that.manageSaveButton();
           that.processing = false;
+        }
+      } else if (that.selecting) {
+        that.selectRectangleGraphic.clear();
+        const position = [roundX * displayRate, roundY * displayRate];
+        const rect = Phaser.Geom.Rectangle.FromPoints([position, that.selectBasePoint]);
+        that.selectRectangleGraphic.strokeRectShape(rect);
+        that.selectRectangleGraphic.fillRectShape(rect);
+
+        for (const v of that.vertices) {
+          if (rect.contains(v.x * displayRate, v.y * displayRate)) {
+            v.select();
+          } else {
+            v.unselect();
+          }
         }
       } else {
         for (const e of that.edges) {
@@ -265,12 +304,14 @@ export class MainScene extends Phaser.Scene {
           e.drawLength = 0;
         }
         let hit = false;
-        for (const v of that.vertices) {
-          if (v.circle.contains(pointer.x, pointer.y)) {
-            v.activateCircle();
-            hit = true;
-          } else {
-            v.deactivateCircle();
+        if (!that.areaSelected) {
+          for (const v of that.vertices) {
+            if (v.circle.contains(pointer.x, pointer.y)) {
+              v.select();
+              hit = true;
+            } else {
+              v.unselect();
+            }
           }
         }
         if (!hit) {
@@ -289,19 +330,49 @@ export class MainScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', function(pointer) {
-      if (that.dragging) return;
+      if (that.dragging || that.selecting) return;
       for (const v of that.vertices) {
-        if (v.circle.contains(pointer.x, pointer.y)) {
+        if (v.circle.contains(pointer.x, pointer.y) && v.selected) {
           that.dragging = true;
-          that.draggingVertex = v;
-          that.pushHistory();
-          break;
         }
+      }
+      if (that.dragging) {
+        for (const v of that.vertices) {
+          if (v.selected) {
+            // @ts-ignore
+            that.selectedVertices.push(v);
+          }
+        }
+        const roundX = Math.round(pointer.x / displayRate);
+        const roundY = Math.round(pointer.y / displayRate);
+        that.dragBasePoint = [roundX, roundY];
+        that.pushHistory();
+      }
+      if (!that.dragging && !that.selecting) {
+        that.areaSelected = false;
+        for (const v of that.vertices) v.unselect();
+
+        const roundX = Math.round(pointer.x / displayRate);
+        const roundY = Math.round(pointer.y / displayRate);
+        that.selecting = true;
+        that.selectBasePoint = [roundX * displayRate, roundY * displayRate];
       }
     });
 
     this.input.on('pointerup', function(pointer) {
-      that.dragging = false;
+      if (that.dragging) {
+        that.dragging = false;
+        that.selectedVertices = [];
+      }
+      if (that.selecting) {
+        that.selecting = false;
+        that.selectRectangleGraphic.clear();
+        for (const v of that.vertices) {
+          if (v.selected) {
+            that.areaSelected = true;
+          }
+        }
+      }
     });
   }
 
@@ -503,7 +574,7 @@ export class MainScene extends Phaser.Scene {
 
   optimize(): void {
     this.pushHistory();
-    baneOptimize(this.vertices, this.edges, this.draggingVertex);
+    baneOptimize(this.vertices, this.edges, this.vertices[0]);  // FIXME
     this.drawFigure();
     this.manageSaveButton();
   }

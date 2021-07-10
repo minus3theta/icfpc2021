@@ -50,7 +50,6 @@ const fetchButton = document.getElementById('fetch-button') as HTMLButtonElement
 fetchButton.addEventListener('click', async () => {
   const selectBox = document.getElementById('problem-id-select-box') as HTMLSelectElement;
   const problemId = + selectBox.value;
-  console.log(problemId)
   const problem_json = await fetchProblem(problemId);
   game.scene.start('mainScene', { filename: 'problem' + problemId, problemInfo: problem_json });
 });
