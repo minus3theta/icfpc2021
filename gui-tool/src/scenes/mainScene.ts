@@ -28,8 +28,8 @@ export class Vertex {
 
   resetCircle(): void {
     this.graphics.clear();
-    this.x = Math.max(Math.min(this.x, maxValue), 0);
-    this.y = Math.max(Math.min(this.y, maxValue), 0);
+    this.x = Math.max(Math.min(this.x, maxValue + geta), 0);
+    this.y = Math.max(Math.min(this.y, maxValue + geta), 0);
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
   }
