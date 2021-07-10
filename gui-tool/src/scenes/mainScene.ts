@@ -368,6 +368,7 @@ export class MainScene extends Phaser.Scene {
   optimize(): void {
     baneOptimize(this.vertices, this.edges, this.draggingVertex);
     this.drawFigure();
+    this.manageSaveButton();
   }
 
   manageSaveButton(): void {
