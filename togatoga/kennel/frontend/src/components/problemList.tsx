@@ -13,7 +13,7 @@ const useStyles = makeStyles((theme: Theme) =>
       maxWidth: 360,
       backgroundColor: theme.palette.background.paper,
     },
-  }),
+  })
 );
 
 function ListItemLink(props: ListItemProps<'a', { button?: true }>) {
@@ -33,16 +33,16 @@ export default function ProblemList() {
   return (
     <div className={classes.root}>
       <List component="nav" aria-label="main mailbox folders">
-        { problems.map((p, i) => {
+        {problems.map((p, i) => {
           return (
             <ListItem
               button
               selected={selectedIdx === i}
               onClick={(e) => handleListClick(i)}
-            >
-              <ListItemText primary={"Problem" + p.id} />
+              key={i}>
+              <ListItemText primary={'Problem' + p.id} />
             </ListItem>
-          )
+          );
         })}
       </List>
     </div>

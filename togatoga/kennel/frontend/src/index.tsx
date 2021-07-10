@@ -6,6 +6,7 @@ import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
 import ProblemList from './components/problemList';
+import ProblemDetail from './components/problemDetail';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -17,7 +18,7 @@ const useStyles = makeStyles((theme: Theme) =>
       textAlign: 'center',
       color: theme.palette.text.secondary,
     },
-  }),
+  })
 );
 
 const App = () => {
@@ -27,11 +28,11 @@ const App = () => {
       <h1>Gon the Fox</h1>
       <div className={classes.root}>
         <Grid container spacing={3}>
-          <Grid item xs={3}>
-            <ProblemList/>
+          <Grid item xs={3} key="problem_list">
+            <ProblemList />
           </Grid>
-          <Grid item xs={9}>
-            <Paper className={classes.paper}>xs=6</Paper>
+          <Grid item xs={9} key="problem_detail">
+            <ProblemDetail />
           </Grid>
         </Grid>
       </div>
