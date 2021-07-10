@@ -77,6 +77,7 @@ func main() {
 
 	e.POST("/api/problems/:id/solutions/:user_name", postSolutions)
 	e.GET("/api/solutions", getSolutions)
+	e.GET("/api/problems/:id", getProblems)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -206,4 +207,19 @@ func postSolutions(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, s)
+}
+
+func getProblems(c echo.Context) error {
+	sql := `SELECT problem FROM problems WHERE id = $1`
+
+	id := c.Param("id")
+
+	problem := new(Problem)
+	if err := db.QueryRow(context.Background(), sql, id).Scan(&problem); err != nil {
+		if err == pgx.ErrNoRows {
+			return c.JSON(http.StatusNotFound, err)
+		}
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, problem)
 }
