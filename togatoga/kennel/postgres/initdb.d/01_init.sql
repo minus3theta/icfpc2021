@@ -38,3 +38,11 @@ CREATE TABLE got_bonuses (
     solution_id INT NOT NULL,
     bonus_id INT NOT NULL
 );
+
+DROP TABLE IF EXISTS minimal_dislikes;
+CREATE TABLE minimal_dislikes (
+    id serial NOT NULL PRIMARY KEY,
+    problem_id INT NOT NULL,
+    dislike INT NOT NULL,
+    created_at TIMESTAMP with time zone NOT NULL
+);
