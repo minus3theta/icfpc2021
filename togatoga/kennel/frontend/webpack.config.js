@@ -19,7 +19,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       chunks: ['index'],
       filename: 'index.html',
-      title: 'MultiHoundWeb',
+      title: 'Gon the Fox',
       template: 'template.html'
     }),
   ],
