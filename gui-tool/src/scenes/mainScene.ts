@@ -2,6 +2,7 @@ import {canvasSize} from "../main";
 
 const geta = 2;
 let displayRate = 5;
+let displayStretchRateFlag = false;
 
 class Vertex {
   public x;
@@ -15,6 +16,7 @@ class Vertex {
     this.y = y;
     this.graphics = scene.add.graphics({ fillStyle: { color: 0x00ff00 } })
     this.graphics.setAlpha(0);
+    this.edges = [];
 
     this.resetCircle();
   }
@@ -23,6 +25,17 @@ class Vertex {
     this.graphics.clear();
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
+  }
+
+  activateCircle(): void {
+    this.graphics.setAlpha(1);
+    for (const e of this.edges) {
+      e.drawRateFlag = true;
+    }
+  }
+
+  deactivateCircle(): void {
+    this.graphics.setAlpha(0);
   }
 }
 
@@ -56,6 +69,9 @@ class FigureEdge extends Edge {
   public baseLength;
   public minLength;
   public maxLength;
+  public textElem;
+  public scene;
+  public drawRateFlag = false;
 
   constructor(v1: Vertex, v2: Vertex, epsilon: number, scene: Phaser.Scene) {
     super(v1, v2);
@@ -63,12 +79,45 @@ class FigureEdge extends Edge {
     this.graphics = scene.add.graphics({ lineStyle: { width: 4, color: 0xff0000 } })
     this.maxLength = this.baseLength * (1 + epsilon / 1000000);
     this.minLength = this.baseLength * (1 - epsilon / 1000000);
+    this.scene = scene;
+
+    this.textElem = document.createElement('span');
+    this.textElem.style.position = 'absolute';
+    this.textElem.innerHTML = 'hoge';
+
+    // @ts-ignore
+    document.getElementById('stretch-rate-wrapper').appendChild(this.textElem);
+  }
+
+  draw(): void {
+    super.draw();
+
+    if (this.drawRateFlag) {
+      this.textElem.innerText = String(this.calcStretchRate());
+      this.textElem.style.left = (String)((this.v[0].x + this.v[1].x) / 2 * displayRate) + 'px';
+      this.textElem.style.top = (String)((this.v[0].y + this.v[1].y) / 2 * displayRate) + 'px';
+      const len = this.calcLength();
+      if (len < this.minLength || this.maxLength < len) {
+        this.textElem.style.color = '#CC0000';
+        this.textElem.style.fontWeight = 'bold';
+      } else {
+        this.textElem.style.color = '';
+        this.textElem.style.fontWeight = '';
+      }
+    } else {
+      this.textElem.innerText = '';
+    }
   }
 
   calcLength(): number {
     const dx = this.v[0].x - this.v[1].x;
     const dy = this.v[0].y - this.v[1].y;
     return dx*dx + dy*dy;
+  }
+
+  calcStretchRate(): number {
+    const len = this.calcLength();
+    return Math.floor(len / this.baseLength * 100) / 100;
   }
 
   isValidLength(): boolean {
@@ -161,13 +210,17 @@ export class MainScene extends Phaser.Scene {
           that.processing = false;
         }
       } else {
+        for (const e of that.edges) {
+          e.drawRateFlag = false;
+        }
         for (const v of that.vertices) {
           if (v.circle.contains(pointer.x, pointer.y)) {
-            v.graphics.setAlpha(1);
+            v.activateCircle();
           } else {
-            v.graphics.setAlpha(0);
+            v.deactivateCircle();
           }
         }
+        that.drawFigure();
       }
     });
 
@@ -211,10 +264,13 @@ export class MainScene extends Phaser.Scene {
 
     this.edges = [];
     for (let i = 0; i < origEdges.length; i++) {
-      this.edges.push(new FigureEdge(this.vertices[origEdges[i][0]],
-                                     this.vertices[origEdges[i][1]],
-                                     this.problemInfo.epsilon,
-                                     this));
+      const edge = new FigureEdge(this.vertices[origEdges[i][0]],
+                                  this.vertices[origEdges[i][1]],
+                                  this.problemInfo.epsilon,
+                                  this);
+      this.edges.push(edge);
+      this.vertices[origEdges[i][0]].edges.push(edge);
+      this.vertices[origEdges[i][1]].edges.push(edge);
     }
   }
 
@@ -275,8 +331,9 @@ export class MainScene extends Phaser.Scene {
           break;
         }
       }
+      holeEdge.graphics.clear();
       if (intersect) {
-        holeEdge.graphics = this.add.graphics({ lineStyle: { width: 2, color: 0x999999 } })
+        holeEdge.graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xDD9999 } })
       } else {
         holeEdge.graphics = this.add.graphics({ lineStyle: { width: 2, color: 0x000000 } })
       }
