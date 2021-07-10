@@ -10,10 +10,12 @@ type Problem = {
 
 type State = {
   problems: Problem[];
+  selected: number;
 };
 
 const initialState: State = {
   problems: [{ id: 1 }, { id: 2 }],
+  selected: 0
 };
 
 const slice = createSlice({
@@ -27,10 +29,17 @@ const slice = createSlice({
       ...state,
       problems: action.payload.problems,
     }),
+    setSelected: (
+      state,
+      action: PayloadAction<number>
+    ) => ({
+      ...state,
+      selected: action.payload,
+    }),
   },
 });
 
-export const { updateProblems } = slice.actions;
+export const { updateProblems, setSelected } = slice.actions;
 
 export const store = configureStore({
   reducer: slice.reducer,
