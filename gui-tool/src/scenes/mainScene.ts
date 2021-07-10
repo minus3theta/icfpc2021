@@ -60,13 +60,15 @@ export class Vertex {
     }
   }
 
-  select(): void {
+  select(forceDrawRate: boolean): void {
     this.selected = true;
     this.prevX = this.x;
     this.prevY = this.y;
     this.graphics.setAlpha(1);
-    for (const e of this.edges) {
-      e.drawRateFlag = true;
+    if (forceDrawRate) {
+      for (const e of this.edges) {
+        e.drawRateFlag = true;
+      }
     }
   }
 
@@ -332,7 +334,7 @@ export class MainScene extends Phaser.Scene {
 
         for (const v of that.vertices) {
           if (rect.contains(v.x * displayRate, v.y * displayRate)) {
-            v.select();
+            v.select(true);
           } else {
             v.unselect();
           }
@@ -346,7 +348,7 @@ export class MainScene extends Phaser.Scene {
         if (!that.areaSelected) {
           for (const v of that.vertices) {
             if (v.circle.contains(pointer.x, pointer.y)) {
-              v.select();
+              v.select(true);
               hit = true;
             } else {
               v.unselect();
@@ -403,7 +405,7 @@ export class MainScene extends Phaser.Scene {
         that.dragging = false;
         for (const v of that.selectedVertices) {
           // @ts-ignore
-          v.select();
+          v.select(true);
         }
         if (!that.areaSelected) {
           that.selectedVertices = [];
@@ -685,6 +687,8 @@ export class MainScene extends Phaser.Scene {
       // @ts-ignore
       v.y = maxY - (v.y - minY)
       // @ts-ignore
+      v.select(false);
+      // @ts-ignore
       v.resetCircle();
     }
     this.drawFigure();
@@ -705,6 +709,8 @@ export class MainScene extends Phaser.Scene {
     for (const v of this.selectedVertices) {
       // @ts-ignore
       v.x = maxX - (v.x - minX)
+      // @ts-ignore
+      v.select(false);
       // @ts-ignore
       v.resetCircle();
     }
@@ -743,6 +749,8 @@ export class MainScene extends Phaser.Scene {
       v.x = Math.round(centerX + dx*Math.cos(rad) - dy*Math.sin(rad));
       // @ts-ignore
       v.y = Math.round(centerY + dx*Math.sin(rad) + dy*Math.cos(rad));
+      // @ts-ignore
+      v.select(false);
       // @ts-ignore
       v.resetCircle();
     }
