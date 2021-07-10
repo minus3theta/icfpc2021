@@ -1,4 +1,5 @@
 import 'phaser';
+import { fetchProblem } from './scenes/fetch_problem';
 import {MainScene} from "./scenes/mainScene";
 
 export const fps: number = 24;
@@ -43,4 +44,13 @@ document.getElementById('upload-button').addEventListener('change', function(eve
     }
   }
   reader.readAsText(file);
+});
+
+const fetchButton = document.getElementById('fetch-button') as HTMLButtonElement;
+fetchButton.addEventListener('click', async () => {
+  const selectBox = document.getElementById('problem-id-select-box') as HTMLSelectElement;
+  const problemId = + selectBox.value;
+  console.log(problemId)
+  const problem_json = await fetchProblem(problemId);
+  game.scene.start('mainScene', { filename: 'problem' + problemId, problemInfo: problem_json });
 });
