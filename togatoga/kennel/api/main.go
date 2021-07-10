@@ -47,8 +47,14 @@ type Problem struct {
 	Bonuses []Bonus `json:"bonuses"`
 }
 
-type MinimalRecord struct {
+type MinimalPosted struct {
 	Dislike int `json:"minimal_dislike"`
+}
+
+type MinimalRecord struct {
+	Problem int `json:"problem_id"`
+	Dislike int `json:"minimal_dislike"`
+	Created_at time.Time `json:"created_at"`
 }
 
 var db *pgx.Conn
@@ -83,6 +89,7 @@ func main() {
 	e.GET("/api/solutions", getSolutions)
 	e.GET("/api/problems/:id", getProblems)
 	e.POST("/api/minimal/:id", postMinimal)
+	e.GET("/api/minimal/:id", getMinimal)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -232,7 +239,7 @@ func getProblems(c echo.Context) error {
 func postMinimal(c echo.Context) error {
 	sql := `INSERT INTO minimal_dislikes(problem_id, dislike, created_at) VALUES ($1, $2, current_timestamp)`
 
-	r := new(MinimalRecord)
+	r := new(MinimalPosted)
 	id := c.Param("id")
 	if err := c.Bind(&r); err != nil {
 		return err
@@ -253,4 +260,21 @@ func postMinimal(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, r)
+}
+
+func getMinimal(c echo.Context) error {
+	sql := `SELECT problem_id, dislike, created_at FROM minimal_dislikes
+	WHERE problem_id = $1
+	ORDER BY created_at DESC
+	LIMIT 1`
+
+	minimal := new(MinimalRecord)
+	id := c.Param("id")
+	if err := db.QueryRow(context.Background(), sql, id).Scan(&minimal.Problem, &minimal.Dislike, &minimal.Created_at); err != nil {
+		if err == pgx.ErrNoRows {
+			return c.JSON(http.StatusNotFound, err)
+		}
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, minimal)
 }
