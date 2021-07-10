@@ -4,7 +4,6 @@ import { baneOptimize } from "./kaku";
 const geta = 2;
 let displayRate = 5;
 let maxValue = 0;
-let displayStretchRateFlag = false;
 
 export class Vertex {
   public x;
@@ -226,6 +225,7 @@ export class MainScene extends Phaser.Scene {
     this.displayEpsilon();
     this.updateSaveButton();
     this.updateUndoButton();
+    this.updateUploadAnswerButton();
     this.updateDisplayIdCheckbox();
     this.manageUndoButton();
     this.optimizeButton();
@@ -514,6 +514,37 @@ export class MainScene extends Phaser.Scene {
     this.manageUndoButton();
   }
 
+  uploadAnswer(event): void {
+    const input = event.target;
+    // @ts-ignore
+    if (input.files.length === 0) return;
+    // @ts-ignore
+    const file = input.files[0];
+    const reader = new FileReader();
+    const that = this;
+    reader.onload = function() {
+      if (typeof reader.result === "string") {
+        const json = JSON.parse(reader.result);
+        const vertices = json.vertices;
+        // @ts-ignore
+        if (that.vertices.length !== vertices.length) {
+          alert('invalid answer');
+        } else {
+          for (let i = 0; i < vertices.length; i++) {
+            // @ts-ignore
+            that.vertices[i].x = vertices[i][0] + geta;
+            // @ts-ignore
+            that.vertices[i].y = vertices[i][1] + geta;
+            that.vertices[i].resetCircle();
+          }
+          // @ts-ignore
+          that.drawFigure();
+        }
+      }
+    }
+    reader.readAsText(file);
+  }
+
   manageSaveButton(): void {
     const saveButton = document.getElementById('save-button');
     if (this.isValidAnswer()) {
@@ -593,6 +624,26 @@ export class MainScene extends Phaser.Scene {
 
     // @ts-ignore
     newUndoButton.addEventListener('click', this.undo.bind(this));
+  }
+
+  updateUploadAnswerButton(): void {
+    const uploadAnswerButtonWrapper = document.getElementById('answer-upload-button-wrapper');
+    const uploadAnswerButton = document.getElementById('answer-upload-button');
+
+    // @ts-ignore
+    uploadAnswerButtonWrapper.removeChild(uploadAnswerButton);
+
+    const newUploadAnswerButton = document.createElement('input');
+    newUploadAnswerButton.id = 'answer-upload-button';
+    newUploadAnswerButton.type = 'file';
+    // @ts-ignore
+    uploadAnswerButtonWrapper.appendChild(newUploadAnswerButton);
+
+    // @ts-ignore
+    uploadAnswerButtonWrapper.appendChild(newUploadAnswerButton);
+
+    // @ts-ignore
+    newUploadAnswerButton.addEventListener('change', this.uploadAnswer.bind(this));
   }
 
   updateDisplayIdCheckbox(): void {
