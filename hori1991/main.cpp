@@ -1,14 +1,19 @@
 #include <algorithm>
 #include <cstdint>
 #include <ios>
+#include <sstream>
+#include <string>
+#include <thread>
 #define PICOJSON_USE_INT64
 #include "picojson.h"
 #include <cassert>
 #include <climits>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <iterator>
+#include <queue>
 #include <vector>
 
 struct Position {
@@ -198,6 +203,7 @@ VertexDistences getVertexDistance(const InputData &input) {
 }
 
 const char *partialResultOutputDir = "output";
+std::size_t numThreads = 4;
 
 void dfs(int i, const VertexDistences &vertexDistances, const InputData &input,
          const std::vector<Position> &innerPoints, std::vector<Position> &state,
@@ -205,8 +211,10 @@ void dfs(int i, const VertexDistences &vertexDistances, const InputData &input,
   if (i == vertexDistances.size()) {
     long long d = dislikes(input.hole, state);
     if (d < score) {
-      std::ofstream fout(std::string(partialResultOutputDir) + "/" +
-                         std::to_string(d) + ".json");
+      std::stringstream ss;
+      ss << partialResultOutputDir << "/" << std::this_thread::get_id() << "_"
+         << d << ".json";
+      std::ofstream fout(ss.str());
       OutputData output{state};
       dump(fout, output);
       score = d;
@@ -243,26 +251,51 @@ void dfs(int i, const VertexDistences &vertexDistances, const InputData &input,
 OutputData solve(const InputData &input) {
   auto innerPoints = getInnerPoints(input);
   auto distances = getVertexDistance(input);
-  std::vector<Position> ans, state;
-  long long score = LLONG_MAX;
-  for (auto &p : innerPoints) {
+  using ResultType = std::pair<std::vector<Position>, long long>;
+  auto solver = [&innerPoints, &input,
+                 &distances](const Position &p) -> ResultType {
+    std::vector<Position> ans, state;
+    long long score = LLONG_MAX;
     state.push_back(p);
     dfs(1, distances, input, innerPoints, state, ans, score);
-    state.pop_back();
+    return std::make_pair(std::move(ans), score);
+  };
+  std::queue<std::future<ResultType>> futs;
+  std::vector<Position> ans;
+  long long score = LLONG_MAX;
+  for (auto &p : innerPoints) {
+    if (futs.size() > numThreads) {
+      auto x = futs.front().get();
+      if (x.second < score) {
+        score = x.second;
+        ans = std::move(x.first);
+      }
+      futs.pop();
+    }
+    futs.push(std::async(solver, p));
+  }
+  while (!futs.empty()) {
+    auto x = futs.front().get();
+    if (x.second < score) {
+      score = x.second;
+      ans = std::move(x.first);
+    }
+    futs.pop();
   }
   return OutputData{std::move(ans)};
 }
 
 int main(int argv, const char *argc[]) {
-  if (argv < 3) {
+  if (argv < 5) {
     std::cout << "./a.out ${PROBREM_JSON_FILE} ${RESULT_JSON_FILE} "
-                 "${PARTIAL_RESULT_OUTPUT_DIR}"
+                 "${PARTIAL_RESULT_OUTPUT_DIR} ${NUM_THREADS}"
               << std::endl;
     return 0;
   }
   const char *filename = argc[1];
   const char *outputfilename = argc[2];
   partialResultOutputDir = argc[3];
+  numThreads = std::stoull(argc[4]);
   std::filesystem::create_directory(partialResultOutputDir);
   std::ifstream fin(filename);
   auto input = load(fin);
