@@ -576,7 +576,13 @@ export class MainScene extends Phaser.Scene {
 
   optimize(): void {
     this.pushHistory();
-    baneOptimize(this.vertices, this.edges, this.lastDraggedVertex);
+    const selectedVertices: Vertex[] = [];
+    for (const v of this.vertices) {
+      if (v.selected) {
+        selectedVertices.push(v);
+      }
+    }
+    baneOptimize(this.vertices, selectedVertices);
     this.drawFigure();
     this.manageSaveButton();
   }
