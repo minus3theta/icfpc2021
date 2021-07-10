@@ -113,9 +113,8 @@ func loadProblems(l echo.Logger) error {
 func insertProblem(problemId int, problem Problem, l echo.Logger) error {
 	problemSql := `INSERT INTO problems(id, problem) VALUES ($1, $2)
 	ON CONFLICT(id) DO UPDATE SET id = $1`
-	bonusSelectSql := `SELECT id from bonuses WHERE source = $1 and source_index = $2`
-	bonusUpdateSql := `UPDATE bonuses SET source = $1, source_index = $2, destination = $3,
-	bonus = $4, position = $5 WHERE id = $6`
+	bonusUpdateSql := `UPDATE bonuses SET destination = $1, bonus = $2, position = $3
+	WHERE source = $4 and source_index = $5`
 	bonusInsertSql := `INSERT INTO bonuses(source, source_index, destination, bonus, position)
 	VALUES ($1, $2, $3, $4, $5)`
 
@@ -133,22 +132,12 @@ func insertProblem(problemId int, problem Problem, l echo.Logger) error {
 	}
 
 	for index, bonus := range problem.Bonuses {
-		rows, err := tx.Query(context.Background(), bonusSelectSql, problemId, index)
+		count, err := tx.Exec(context.Background(), bonusUpdateSql, bonus.Problem, bonus.Bonus, bonus.Position, problemId, index)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to fetch bonuses from DB: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Unable to update bonuses in DB: %v\n", err)
 			return err
 		}
-		if rows.Next() {
-			var bonusId int
-			if err := rows.Scan(&bonusId); err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to scan bonus ID: %v\n", err)
-				return err
-			}
-			if _, err := tx.Exec(context.Background(), bonusUpdateSql, problemId, index, bonus.Problem, bonus.Bonus, bonus.Position, bonusId); err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to update bonuses in DB: %v\n", err)
-				return err
-			}
-		} else {
+		if count.RowsAffected() == 0 {
 			if _, err := tx.Exec(context.Background(), bonusInsertSql, problemId, index, bonus.Problem, bonus.Bonus, bonus.Position); err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to insert bonus to DB: %v\n", err)
 				return err
