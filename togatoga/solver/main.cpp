@@ -196,10 +196,7 @@ public:
         for (int k = j + 1; k < hole_internal_points.size(); k++) {
           pii xy2 = hole_internal_points[k];
           int sat_index2 = sat_index_from_fig_and_point(i, xy2);
-          vector<int> bin_clause;
-          bin_clause.push_back(-sat_index1);
-          bin_clause.push_back(-sat_index2);
-          sat_clauses.push_back(bin_clause);
+          bin_clauses.push_back(mp(-sat_index1, -sat_index2));
         }
       }
       cerr << "Done!! " << i + 1 << "/" << figure_num << " "
@@ -223,10 +220,7 @@ public:
             if (!ok) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
               int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              vector<int> bin_clause;
-              bin_clause.push_back(-sat_index1);
-              bin_clause.push_back(-sat_index2);
-              sat_clauses.push_back(bin_clause);
+              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
               continue;
             }
             ll previous_dist = calc_dist(xy3, xy4);
@@ -237,10 +231,7 @@ public:
             if (left_value > right_value) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
               int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              vector<int> bin_clause;
-              bin_clause.push_back(-sat_index1);
-              bin_clause.push_back(-sat_index2);
-              sat_clauses.push_back(bin_clause);
+              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
             }
           }
         }
@@ -254,10 +245,12 @@ public:
 
   void output_cnf(std::string output_file_name) {
     ofstream os(output_file_name, ios::out | ios::binary);
+    int clause_num = sat_clauses.size() + bin_clauses.size();
+    os << "p cnf " << figure_num * point_num() + 1 << " " << clause_num << "\n";
 
-    os << "p cnf " << figure_num * point_num() + 1 << " " << sat_clauses.size()
-       << "\n";
-
+    for (const auto &bin : bin_clauses) {
+      os << bin.first << " " << bin.second << " 0\n";
+    }
     for (const auto &clause : sat_clauses) {
       for (int v : clause) {
         os << v << " ";
@@ -302,6 +295,7 @@ public:
   vector<vector<int>> neighbor_figs;
   vector<vector<int>> point_to_index;
   vector<vector<int>> sat_clauses;
+  vector<pii> bin_clauses;
   vector<vector<char>> intersected_points;
 };
 void print_usage() {
