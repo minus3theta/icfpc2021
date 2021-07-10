@@ -26,8 +26,27 @@ export type Problem = {
   bonuses: Bonus[];
 };
 
+export type Solution = {
+  pose: {
+    bonus?: string,
+    edge?: Pair,
+    problem: number,
+    vertices: Pair[]
+  }
+  dislike: number,
+  solutionId: string
+}
+
+export type ProblemStatus = {
+  id: number,
+  problem: Problem,
+  need_fetch_problem: boolean,
+  solutions: Solution[],
+  need_fetch_solution: boolean
+}
+
 export type State = {
-  problems: {id: number, problem: Problem, need_fetch: boolean}[];
+  problems: ProblemStatus[];
   selected: number;
 };
 
@@ -45,12 +64,16 @@ const initialState: State = {
     {
       id: 1,
       problem: initialProblem(),
-      need_fetch: true
+      need_fetch_problem: true,
+      solutions: [] as Solution[],
+      need_fetch_solution: true,
     },
     {
       id: 2,
       problem: initialProblem(),
-      need_fetch: true
+      need_fetch_problem: true,
+      solutions: [] as Solution[],
+      need_fetch_solution: true,
     },
   ],
   selected: 0,
@@ -62,7 +85,7 @@ const slice = createSlice({
   reducers: {
     updateProblem: (
       state,
-      action: PayloadAction<{ id: number, problem: Problem, need_fetch: boolean }>
+      action: PayloadAction<ProblemStatus>
     ) => ({
       ...state,
       problems: state.problems.map((p) => {
