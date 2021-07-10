@@ -175,6 +175,12 @@ std::vector<Position> getInnerPoints(const InputData &input) {
   }
   return ans;
 }
+void dumpInnerPoints(std::ostream &out, const std::vector<Position> &innerPoints) {
+  out << innerPoints.size() << "\n";
+  for (auto &p: innerPoints) {
+    out << p.x << " " << p.y << "\n";
+  }
+}
 bool intersectHole(const Position &p1, const Position &p2,
                    const std::vector<Position> &hole) {
   for (int i = 0; i < hole.size(); ++i) {
@@ -301,6 +307,9 @@ int main(int argv, const char *argc[]) {
   auto input = load(fin);
   auto &hole = input.hole;
 
+//  std::ofstream fout(outputfilename);
+//  auto innerPoints = getInnerPoints(input);
+//  dumpInnerPoints(fout, innerPoints);
   OutputData output = solve(input);
   std::ofstream fout(outputfilename);
   dump(fout, output);
