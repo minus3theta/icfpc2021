@@ -575,10 +575,12 @@ export class MainScene extends Phaser.Scene {
         let vec = new Phaser.Math.Vector2(v1.x - v2.x, v1.y - v2.y);
         const dist = vec.length();
         vec = vec.normalize();
-        v1.vx += vec.x / dist / dist * repulsionRate;
-        v1.vy += vec.y / dist / dist * repulsionRate;
-        v2.vx -= vec.x / dist / dist * repulsionRate;
-        v2.vy -= vec.y / dist / dist * repulsionRate;
+        if (dist > 0) {
+          v1.vx += vec.x / dist / dist * repulsionRate;
+          v1.vy += vec.y / dist / dist * repulsionRate;
+          v2.vx -= vec.x / dist / dist * repulsionRate;
+          v2.vy -= vec.y / dist / dist * repulsionRate;
+        }
       }
     }
   }
