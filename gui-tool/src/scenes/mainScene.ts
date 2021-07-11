@@ -6,6 +6,7 @@ let displayRate = 5;
 let maxValue = 0;
 let globalist = false;
 let wallhack = false;
+let superflex = false;
 let physicsMode = false;
 
 export class Vertex {
@@ -325,6 +326,7 @@ export class MainScene extends Phaser.Scene {
     this.updateUploadAnswerButton();
     this.updateGlobalistCheckbox();
     this.updateWallhackCheckbox();
+    this.updateSuperflexCheckbox();
     this.updateDisplayIdCheckbox();
     this.updatePhysicsModeCheckbox();
     this.updateVerticalFlipButton();
@@ -342,6 +344,7 @@ export class MainScene extends Phaser.Scene {
     this.displayDislikes();
     this.manageGlobalist();
     this.manageWallhack();
+    this.manageSuperflex();
     this.manageDisplayId();
 
     this.selectRectangleGraphic = this.add.graphics({
@@ -718,10 +721,13 @@ export class MainScene extends Phaser.Scene {
       elem.style.color = '';
       elem.style.fontWeight = '';
     } else {
+      let invalidCount = 0;
       for (const edge of this.edges) {
         if (!edge.isValidLength()) {
-          return false;
+          invalidCount++;
         }
+        if (!superflex && invalidCount === 1
+            || invalidCount === 2) return false;
       }
     }
     let outOfHoleCount = 0;
@@ -792,6 +798,10 @@ export class MainScene extends Phaser.Scene {
     if (wallhack) {
       // @ts-ignore
       answer.bonuses.push({ bonus: "WALLHACK", problem: (<HTMLInputElement>document.getElementById('wallhack-problem')).valueAsNumber });
+    }
+    if (superflex) {
+      // @ts-ignore
+      answer.bonuses.push({ bonus: "SUPERFLEX", problem: (<HTMLInputElement>document.getElementById('superflex-problem')).valueAsNumber });
     }
 
     const a = document.createElement('a');
@@ -991,6 +1001,12 @@ export class MainScene extends Phaser.Scene {
     this.manageSaveButton();
   }
 
+  manageSuperflex(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('superflex-checkbox');
+    superflex = checkbox.checked;
+    this.manageSaveButton();
+  }
+
   managePhysicsMode(): void {
     const checkbox = <HTMLInputElement>document.getElementById('physics-mode-checkbox');
     physicsMode = checkbox.checked;
@@ -1160,6 +1176,12 @@ export class MainScene extends Phaser.Scene {
     const wallhackCheckbox = <HTMLInputElement>document.getElementById('wallhack-checkbox');
 
     wallhackCheckbox.addEventListener('change', this.manageWallhack.bind(this));
+  }
+
+  updateSuperflexCheckbox(): void {
+    const superflexCheckbox = <HTMLInputElement>document.getElementById('superflex-checkbox');
+
+    superflexCheckbox.addEventListener('change', this.manageSuperflex.bind(this));
   }
 
   updatePhysicsModeCheckbox(): void {
