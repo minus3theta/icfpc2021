@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -90,7 +91,7 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-var db *pgx.Conn
+var db *pgxpool.Pool
 
 func main() {
 	// Echo instance
@@ -105,7 +106,7 @@ func main() {
 	// Routes
 	//"postgres://root:root@localhost:5432/root"
 	var err error
-	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	db, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
@@ -116,7 +117,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	defer db.Close(context.Background())
+	defer db.Close()
 
 	e.POST("/api/problems/:id/solutions/:user_name", postSolutions)
 	e.GET("/api/problems/:id/solutions", getSolutionsOfProblem)
@@ -420,9 +421,9 @@ func getProblems(c echo.Context) error {
 	problem := new(Problem)
 	if err := db.QueryRow(context.Background(), sql, id).Scan(&problem); err != nil {
 		if err == pgx.ErrNoRows {
-			return c.JSON(http.StatusNotFound, err)
+			return c.JSON(http.StatusNotFound, ErrorResponse{err.Error()})
 		}
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
 	return c.JSON(http.StatusOK, problem)
 }
