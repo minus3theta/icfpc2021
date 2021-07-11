@@ -43,6 +43,7 @@ type UserSolution struct {
 	Problem_id int       `json:"problem_id" db:"problem_id"`
 	User_name  string    `json:"user_name" db:"user_name"`
 	Solution   Solution  `json:"solution" db:"solution"`
+	Dislike    int       `json:"dislike" db:"dislike"`
 	Created_at time.Time `json:"created_at" db:"created_at"`
 }
 
@@ -122,6 +123,7 @@ func main() {
 	e.POST("/api/problems/:id/solutions/:user_name", postSolutions)
 	e.GET("/api/problems/:id/solutions", getSolutionsOfProblem)
 	e.GET("/api/solutions", getSolutions)
+	e.GET("/api/solutions/:id", getSolution)
 	e.GET("/api/problems/:id", getProblems)
 	e.POST("/api/minimal/:id", postMinimal)
 	e.GET("/api/minimal/:id", getMinimal)
@@ -377,7 +379,11 @@ func postSolutions(c echo.Context) error {
 		c.Echo().Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
-	return c.JSON(http.StatusOK, &score)
+	type Response struct {
+		Score
+		SolutionId int `json:"solution_id"`
+	}
+	return c.JSON(http.StatusOK, Response{Score: score, SolutionId: solutionId})
 }
 func getSolutionsOfProblem(c echo.Context) error {
 	// TODO
@@ -402,6 +408,59 @@ func getSolutionsOfProblem(c echo.Context) error {
 
 	// return c.JSON(http.StatusOK, uss)
 	return c.JSON(http.StatusOK, []Solution{})
+}
+func getSolution(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{err.Error()})
+	}
+	sql := `
+		SELECT
+			solutions.id, solutions.problem_id, solutions.user_name, solutions.solution, solutions.dislike,
+			problems.problem
+		FROM solutions
+		JOIN problems ON problems.id = solutions.problem_id
+		WHERE solutions.id = $1`
+	rows, err := db.Query(context.Background(), sql, id)
+	defer rows.Close()
+	if err != nil {
+		c.Echo().Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+	type Response struct {
+		Pose       Solution `json:"pose"`
+		Dislike    int      `json:"dislike"`
+		GotBonuses []int    `json:"gotBonuses"`
+		SolutionId int      `json:"solutionId"`
+		ProblemId  int      `json:"problemId"`
+		UserName   string   `json:"userName"`
+	}
+	type SQLResult struct {
+		UserSolution
+		Problem Problem `db:"problem"`
+	}
+	var result SQLResult
+	err = db.QueryRow(context.Background(), sql, id).Scan(&result.Id, &result.Problem_id, &result.User_name, &result.Solution, &result.Dislike, &result.Problem)
+	if err != nil {
+		c.Echo().Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+	response := Response{
+		Pose:       result.Solution,
+		Dislike:    result.Dislike,
+		SolutionId: result.Id,
+		ProblemId:  result.Problem_id,
+		UserName:   result.User_name,
+	}
+	for i, bonus := range result.Problem.Bonuses {
+		for _, p := range response.Pose.Vertices {
+			if bonus.Position[0] == p[0] && bonus.Position[1] == p[1] {
+				response.GotBonuses = append(response.GotBonuses, i)
+				break
+			}
+		}
+	}
+	return c.JSON(http.StatusOK, response)
 }
 
 func getProblemById(id int) (*Problem, error) {
