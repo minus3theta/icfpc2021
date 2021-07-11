@@ -8,6 +8,7 @@ let globalist = false;
 let wallhack = false;
 let superflex = false;
 let physicsMode = false;
+let putIntoHole = false;
 
 export class Vertex {
   public x;
@@ -329,6 +330,7 @@ export class MainScene extends Phaser.Scene {
     this.updateSuperflexCheckbox();
     this.updateDisplayIdCheckbox();
     this.updatePhysicsModeCheckbox();
+    this.updatePutIntoHoleCheckbox();
     this.updateVerticalFlipButton();
     this.updateHorizontalFlipButton();
     this.updateRotateButton();
@@ -345,6 +347,7 @@ export class MainScene extends Phaser.Scene {
     this.manageGlobalist();
     this.manageWallhack();
     this.manageSuperflex();
+    this.managePutIntoHole();
     this.manageDisplayId();
 
     this.selectRectangleGraphic = this.add.graphics({
@@ -483,7 +486,9 @@ export class MainScene extends Phaser.Scene {
       this.applyTension();
       this.applyRepulsion();
       this.moveByVelocity();
-      this.putVerticesIntoHole();
+      if (putIntoHole) {
+        this.putVerticesIntoHole();
+      }
       this.drawFigure();
       this.drawHole();
       this.displayDislikes();
@@ -1046,6 +1051,11 @@ export class MainScene extends Phaser.Scene {
     this.manageSaveButton();
   }
 
+  managePutIntoHole(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('put-into-hole-checkbox');
+    putIntoHole = checkbox.checked;
+  }
+
   manageDisplayId(): void {
     const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
     if (checkbox.checked) {
@@ -1213,6 +1223,12 @@ export class MainScene extends Phaser.Scene {
     const physicsModeCheckbox = <HTMLInputElement>document.getElementById('physics-mode-checkbox');
 
     physicsModeCheckbox.addEventListener('change', this.managePhysicsMode.bind(this));
+  }
+
+  updatePutIntoHoleCheckbox(): void {
+    const putIntoHoleCheckbox = <HTMLInputElement>document.getElementById('put-into-hole-checkbox');
+
+    putIntoHoleCheckbox.addEventListener('change', this.managePutIntoHole.bind(this));
   }
 
   updateDisplayIdCheckbox(): void {
