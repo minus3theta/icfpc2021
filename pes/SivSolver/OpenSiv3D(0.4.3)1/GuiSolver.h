@@ -4,11 +4,12 @@
 
 class GuiSolver {
 public:
-	explicit GuiSolver(const FilePath& file);
 	explicit GuiSolver();
 	~GuiSolver() {}
+	bool read(const FilePath& file);
 	void readSolution(const FilePath& file);
 	void write(const FilePath& file);
+	void writeHint(const FilePath& file, const FilePath& inner_file, int32 hint_dist) const;
 	void update();
 private:
 	Polygon m_hole;

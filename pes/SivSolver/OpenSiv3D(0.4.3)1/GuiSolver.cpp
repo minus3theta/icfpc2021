@@ -2,6 +2,7 @@
 # include <Siv3D.hpp> // OpenSiv3D v0.4.3
 #include <vector>
 #include <cmath>
+#include <set>
 
 #include "GuiSolver.h"
 
@@ -30,11 +31,24 @@ private:
     Vec2 m_max;
 };
 
-GuiSolver::GuiSolver(const FilePath& file)
-    : GuiSolver()
-{
+GuiSolver::GuiSolver()
+    : m_vel_reduce(0.995)
+    , m_len_fix(0.15)
+    , m_col_fix(0.2)
+    , m_scale(1.0)
+    , m_selected(-1)
+{}
+
+bool GuiSolver::read(const FilePath& file) {
     const JSONReader json(file);
-    if (!json) throw Error(U"Failed to load input json");
+    if (!json) return false;
+
+    m_edge.clear();
+    m_edge_line.clear();
+    m_default_len.clear();
+    m_pos.clear();
+    m_vel.clear();
+    m_move.clear();
 
     int max_coord = 0;
     for (const auto& pt : json[U"hole"].arrayView()) {
@@ -50,7 +64,7 @@ GuiSolver::GuiSolver(const FilePath& file)
     m_scale = 780.f / max_coord;
 
     Array<Vec2> hole_point;
-    for (const auto& pt: json[U"hole"].arrayView()){
+    for (const auto& pt : json[U"hole"].arrayView()) {
         auto p = pt.getArray<double>();
         hole_point.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
     }
@@ -78,15 +92,10 @@ GuiSolver::GuiSolver(const FilePath& file)
     m_move.assign(m_pos.size(), true);
 
     m_epsilon = 0.95 * 1e-6 * json[U"epsilon"].get<int32>();
+
+    return true;
 }
 
-GuiSolver::GuiSolver()
-    : m_vel_reduce(0.995)
-    , m_len_fix(0.8)
-    , m_col_fix(0.8)
-    , m_scale(1.0)
-    , m_selected(-1)
-{}
 
 void GuiSolver::readSolution(const FilePath& file) {
     const JSONReader json(file);
@@ -111,6 +120,53 @@ void GuiSolver::write(const FilePath& file) {
     }
     writer << U"    ]";
     writer << U"}";
+}
+
+void GuiSolver::writeHint(const FilePath& file, const FilePath& inner_file, int32 hint_dist) const {
+    TextReader reader(inner_file);
+    String s;
+    reader.readLine(s);
+    int32 size = Parse<int32>(s);
+    std::set<std::pair<int32, int32>> inner_points;
+    for (int32 i = 0; i < size; i++) {
+        reader.readLine(s);
+        auto a = s.split(' ');
+        inner_points.emplace(Parse<int32>(a[0]), Parse<int32>(a[1]));
+    }
+    TextWriter writer(file);
+    writer << m_pos.size();
+    for (auto& p : m_pos) {
+        std::vector<std::pair<int32, int32>> vp;
+        std::pair<int32, int32> pr;
+        const int32 base_x = int32((p.x - cOffset) / m_scale) - hint_dist - 1;
+        const int32 base_y = int32((p.y - cOffset) / m_scale) - hint_dist - 1;
+        for (int32 i = 0; i < 2 * hint_dist; i++) {
+            for (int32 j = 0; j < 2 * hint_dist; j++) {
+                pr.first = base_x + i;
+                pr.second = base_y + j;
+                if (inner_points.count(pr)) {
+                    vp.push_back(pr);
+                }
+            }
+        }
+        if (vp.empty()) {
+            // Œó•â‚Ì’¸“_‚ªŒ©‚Â‚©‚ç‚È‚©‚Á‚½‚ç‹——£‚ð1L‚Î‚µ‚ÄÄŒvŽZ
+            for (int32 i = 0; i < 2 * hint_dist+2; i++) {
+                for (int32 j = 0; j < 2 * hint_dist+2; j++) {
+                    pr.first = base_x + i - 1;
+                    pr.second = base_y + j - 1;
+                    if (inner_points.count(pr)) {
+                        vp.push_back(pr);
+                    }
+                }
+            }
+            if (vp.empty()) {
+                Print << U"no candidates for the vertex (" << p.x << U", " << p.y << U")";
+            }
+        }
+        writer << vp.size();
+        for (auto& pt : vp) writer << pt.first << U" " << pt.second;
+    }
 }
 
 void GuiSolver::update() {
