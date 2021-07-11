@@ -104,38 +104,26 @@ public:
       neighbor_figs[b].push_back(a);
     }
     intersected_points.resize(hole_internal_points.size(),
-                              vector<char>(hole_internal_points.size(), 0));
-    vector<future<vector<tuple<int, int, bool>>>> futures;
+                              vector<int>(hole_internal_points.size(), 0));
+
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      futures.push_back(std::async([&, i] {
-        pll xy1 = hole_internal_points[i];
-        vector<tuple<int, int, bool>> results;
-        for (int j = i + 1; j < hole_internal_points.size(); j++) {
-          pll xy2 = hole_internal_points[j];
-          bool intersect = false;
-          for (int k = 0; k < hole_points.size(); k++) {
-            int l = (k + 1) % hole_points.size();
-            pll xy3 = hole_points[k];
-            pll xy4 = hole_points[l];
-            if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
-              intersect = true;
-              break;
-            }
+      pll xy1 = hole_internal_points[i];
+      for (int j = i + 1; j < hole_internal_points.size(); j++) {
+        pll xy2 = hole_internal_points[j];
+        for (int k = 0; k < hole_points.size(); k++) {
+          int l = (k + 1) % hole_points.size();
+          pll xy3 = hole_points[k];
+          pll xy4 = hole_points[l];
+          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
+            intersected_points[i][j] = 1;
+            intersected_points[j][i] = 1;
+            break;
           }
-          results.push_back(mt(i, j, intersect));
-        }
-        return results;
-      }));
-    }
-    for (auto &future : futures) {
-      for (const auto &result : future.get()) {
-        int i, j, k;
-        tie(i, j, k) = result;
-        intersected_points[i][j] = k;
-        intersected_points[j][i] = k;
+        }    
       }
     }
-    cerr << "Done!! " << __func__ << endl;
+    
+    cerr << "Preprocess Done!! " << __func__ << endl;
   }
 
   int point_num() { return hole_internal_points.size(); }
@@ -168,7 +156,6 @@ public:
   }
   void add_edge_constraints() {
     // 辺の制約を作成
-    assignments.resize(variable_num(), LIT_UNKNOWN);
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j = 0; j < figure_points.size(); j++) {
         for (int k : neighbor_figs[j]) {
@@ -177,9 +164,7 @@ public:
           clause.push_back(
               -sat_index_from_fig_and_point(j, hole_internal_points[i]));
           for (int l = 0; l < hole_internal_points.size(); l++) {
-            if (intersected_points[i][l] ||
-                assignments[sat_index_from_fig_and_point(
-                    k, hole_internal_points[l])] == LIT_FALSE) {
+            if (intersected_points[i][l]) {
               continue;
             }
             ll new_dist =
@@ -192,13 +177,8 @@ public:
                   sat_index_from_fig_and_point(k, hole_internal_points[l]));
             }
           }
+          assert(!clause.empty());
           sat_clauses.push_back(clause);
-          // Found an unit clause
-          if (clause.size() == 1) {
-            assignments[sat_index_from_fig_and_point(
-                j, hole_internal_points[i])] = LIT_FALSE; // xi = false
-            break;
-          }
         }
       }
       cerr << "Edge constraint!! " << i + 1 << "/"
@@ -240,11 +220,6 @@ public:
       {
         vector<int> clause;
         for (int j = 0; j < bucket_cnt(); j++) {
-          // if (bucket_to_points[j].empty()) {
-          //   cerr << j << " " << bucket_cnt() << " " <<
-          //   hole_internal_points.size() << endl;
-          // }
-          // assert(!bucket_to_points[j].empty());
           clause.push_back(get_sat_index_from_fig_and_bucket(i, j));
         }
         sat_clauses.push_back(clause);
@@ -303,9 +278,6 @@ public:
       for (int j = 0; j < figure_points.size(); j++) {
         int sat_index1 =
             sat_index_from_fig_and_point(j, hole_internal_points[i]);
-        if (assignments[sat_index1] == LIT_FALSE) {
-          continue;
-        }
         int sat_index2 = variable_num();
         bin_clauses.push_back(mp(-sat_index1, sat_index2));
         clause.push_back(sat_index1);
@@ -316,7 +288,7 @@ public:
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      for (int j = i; j < hole_internal_points.size(); j++) {
+      for (int j = i + 1; j < hole_internal_points.size(); j++) {
         if (intersected_points[i][j]) {
           bin_clauses.push_back(
               mp(-index_to_super_node[i], -index_to_super_node[j]));
@@ -448,8 +420,8 @@ public:
   vector<vector<int>> point_to_index;
   vector<vector<int>> sat_clauses;
   vector<pii> bin_clauses;
-  vector<vector<char>> intersected_points;
-  vector<int> assignments;
+  vector<vector<int>> intersected_points;
+  // vector<int> assignments;
   int new_variable;
   map<pair<int, int>, int> fig_and_bucket_to_sat_index;
   vector<vector<pii>> bucket_to_points;
@@ -459,7 +431,6 @@ void print_usage() {
             << std::endl;
 }
 int main(int argc, char *argv[]) {
-
   Solver s = Solver();
   if (argc != 4) {
     print_usage();
