@@ -17,6 +17,7 @@ export class Vertex {
   public id;
   public textElem;
   public selected;
+  public inHole;
 
   constructor(x: number, y: number, scene: Phaser.Scene, id: number) {
     this.x = x;
@@ -41,9 +42,12 @@ export class Vertex {
   }
 
   resetCircle(): void {
+    if (this.inHole) {
+      this.graphics.defaultFillColor = 0x00ff00;
+    } else {
+      this.graphics.defaultFillColor = 0xff0000;
+    }
     this.graphics.clear();
-    this.x = Math.max(Math.min(this.x, maxValue + geta), 0);
-    this.y = Math.max(Math.min(this.y, maxValue + geta), 0);
     this.circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 10);
     this.graphics.fillCircleShape(this.circle);
 
@@ -244,6 +248,27 @@ export class FigureEdge extends Edge {
   }
 }
 
+class HolePolygon {
+  public polygon;
+
+  constructor(vertices: Array<Vertex>) {
+    let pts: Array<number> = [];
+    for (const v of vertices) {
+      pts.push(v.x)
+      pts.push(v.y)
+    }
+    this.polygon = new Phaser.Geom.Polygon(pts);
+  }
+
+  contains(v: Vertex): boolean {
+    const eps = 0.000000001;
+    return Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y - eps)
+           || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y - eps)
+           || Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y + eps)
+           || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y + eps);
+  }
+}
+
 export class MainScene extends Phaser.Scene {
   constructor() {
     super({
@@ -258,12 +283,13 @@ export class MainScene extends Phaser.Scene {
   private edges;
   private holeVertices;
   private holeEdges;
+  private holePolygon;
   private bonusVertices;
 
   private history;
 
   private dragging = false;
-  private selectedVertices = [];
+  private selectedVertices: Array<Vertex> = [];
   private selecting = false;
   private areaSelected = false;
   private processing = false;
@@ -323,13 +349,7 @@ export class MainScene extends Phaser.Scene {
           const dx = roundX - that.dragBasePoint[0];
           const dy = roundY - that.dragBasePoint[1];
           for (const v of that.selectedVertices) {
-            // @ts-ignore
-            v.x = v.prevX + dx;
-            // @ts-ignore
-            v.y = v.prevY + dy;
-            // @ts-ignore
-            v.resetCircle();
-            // @ts-ignore
+            that.moveTo(v, v.prevX + dx, v.prevY + dy);
             v.drawConnectedEdges();
           }
           that.drawHole();
@@ -389,7 +409,6 @@ export class MainScene extends Phaser.Scene {
         if (v.circle.contains(pointer.x, pointer.y) && v.selected) {
           that.dragging = true;
           if (!that.areaSelected) {
-            // @ts-ignore
             that.selectedVertices.push(v);
             break;
           }
@@ -418,7 +437,6 @@ export class MainScene extends Phaser.Scene {
       if (that.dragging) {
         that.dragging = false;
         for (const v of that.selectedVertices) {
-          // @ts-ignore
           v.select(true);
         }
         if (!that.areaSelected) {
@@ -431,7 +449,6 @@ export class MainScene extends Phaser.Scene {
         for (const v of that.vertices) {
           if (v.selected) {
             that.areaSelected = true;
-            // @ts-ignore
             that.selectedVertices.push(v);
           }
         }
@@ -457,9 +474,12 @@ export class MainScene extends Phaser.Scene {
 
     this.vertices = [];
     for (let i = 0; i < origVertices.length; i++) {
-      this.vertices.push(new Vertex(origVertices[i][0],
-                                    origVertices[i][1],
-                                    this, i));
+      const v = new Vertex(origVertices[i][0],
+                           origVertices[i][1],
+                           this, i);
+      v.inHole = this.holePolygon.contains(v);
+      this.vertices.push(v);
+      v.resetCircle();
     }
 
     this.edges = [];
@@ -481,6 +501,13 @@ export class MainScene extends Phaser.Scene {
     for (const bonus of this.problemInfo.bonuses) {
       this.bonusVertices.push(new BonusVertex(bonus.position[0] + geta, bonus.position[1] + geta, bonus.bonus, bonus.problem, this));
     }
+  }
+
+  moveTo(v: Vertex, x: number, y: number) {
+    v.x = Math.max(Math.min(x, maxValue + 2 * geta), 0);
+    v.y = Math.max(Math.min(y, maxValue + 2 * geta), 0);
+    v.inHole = this.holePolygon.contains(v);
+    v.resetCircle();
   }
 
   drawLattice(): void {
@@ -535,6 +562,8 @@ export class MainScene extends Phaser.Scene {
                                        this.holeVertices[(i+1) % hole.length],
                                        this));
     }
+
+    this.holePolygon = new HolePolygon(this.holeVertices);
   }
 
   drawFigure(): void {
@@ -587,12 +616,8 @@ export class MainScene extends Phaser.Scene {
         }
       }
     }
-    for (const holeEdge of this.holeEdges) {
-      for (const figureEdge of this.edges) {
-        if (this.isIntersect(holeEdge, figureEdge)) {
-          return false;
-        }
-      }
+    for (const v of this.vertices) {
+      if (!v.inHole) return false;
     }
     return true;
   }
@@ -692,18 +717,12 @@ export class MainScene extends Phaser.Scene {
     let minY = 10000;
     let maxY = -10000;
     for (const v of this.selectedVertices) {
-      // @ts-ignore
       minY = Math.min(minY, v.y);
-      // @ts-ignore
       maxY = Math.max(maxY, v.y);
     }
     for (const v of this.selectedVertices) {
-      // @ts-ignore
-      v.y = maxY - (v.y - minY)
-      // @ts-ignore
+      this.moveTo(v, v.x, maxY - (v.y - minY));
       v.select(false);
-      // @ts-ignore
-      v.resetCircle();
     }
     this.drawFigure();
     this.drawBonusVertices();
@@ -715,18 +734,12 @@ export class MainScene extends Phaser.Scene {
     let minX = 10000;
     let maxX = -10000;
     for (const v of this.selectedVertices) {
-      // @ts-ignore
       minX = Math.min(minX, v.x);
-      // @ts-ignore
       maxX = Math.max(maxX, v.x);
     }
     for (const v of this.selectedVertices) {
-      // @ts-ignore
-      v.x = maxX - (v.x - minX)
-      // @ts-ignore
+      this.moveTo(v, maxX - (v.x - minX), v.y);
       v.select(false);
-      // @ts-ignore
-      v.resetCircle();
     }
     this.drawFigure();
     this.drawBonusVertices();
@@ -739,13 +752,9 @@ export class MainScene extends Phaser.Scene {
     let minY = 10000;
     let maxY = -10000;
     for (const v of this.selectedVertices) {
-      // @ts-ignore
       minX = Math.min(minX, v.x);
-      // @ts-ignore
       maxX = Math.max(maxX, v.x);
-      // @ts-ignore
       minY = Math.min(minY, v.y);
-      // @ts-ignore
       maxY = Math.max(maxY, v.y);
     }
     const rot = <HTMLInputElement>document.getElementById('rotate-value');
@@ -755,18 +764,12 @@ export class MainScene extends Phaser.Scene {
     const centerX = (maxX + minX) / 2;
     const centerY = (maxY + minY) / 2;
     for (const v of this.selectedVertices) {
-      // @ts-ignore
       const dx = v.x - centerX;
-      // @ts-ignore
       const dy = v.y - centerY;
-      // @ts-ignore
-      v.x = Math.round(centerX + dx*Math.cos(rad) - dy*Math.sin(rad));
-      // @ts-ignore
-      v.y = Math.round(centerY + dx*Math.sin(rad) + dy*Math.cos(rad));
-      // @ts-ignore
+      this.moveTo(v,
+                  Math.round(centerX + dx*Math.cos(rad) - dy*Math.sin(rad)),
+                  Math.round(centerY + dx*Math.sin(rad) + dy*Math.cos(rad)));
       v.select(false);
-      // @ts-ignore
-      v.resetCircle();
     }
     this.drawFigure();
     this.drawBonusVertices();
@@ -776,8 +779,7 @@ export class MainScene extends Phaser.Scene {
     const arr = this.history.pop();
     if (!arr) return;
     for (let i = 0; i < this.vertices.length; i++) {
-      this.vertices[i].x = arr[i][0];
-      this.vertices[i].y = arr[i][1];
+      this.moveTo(this.vertices[i], arr[i][0], arr[i][1]);
     }
     this.drawFigure();
     for (const v of this.vertices) {
