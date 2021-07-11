@@ -54,6 +54,7 @@ export type ProblemStatus = {
   solutions: Solution[];
   need_fetch_solution: boolean;
   minimal_dislike: MinimalDislike | null;
+  need_fetch_minimal: boolean;
 };
 
 export type State = {
@@ -85,6 +86,7 @@ for (let i = 0; i < n_problem; i++) {
     solutions: [] as Solution[],
     need_fetch_solution: true,
     minimal_dislike: null,
+    need_fetch_minimal: true,
   });
 }
 

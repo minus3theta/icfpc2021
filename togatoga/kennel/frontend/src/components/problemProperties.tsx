@@ -61,13 +61,14 @@ export default function ProblemProperties() {
         updateProblem({
           ...p,
           minimal_dislike: e,
+          need_fetch_minimal: false
         })
       );
     });
   };
 
   useEffect(() => {
-    if (problem?.solutions.length === 0) {
+    if (problem?.need_fetch_minimal) {
       fetchMinimal();
     }
     setNewMinimal('');
