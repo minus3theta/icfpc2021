@@ -73,7 +73,7 @@ static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2) {
 
 class Solver {
 public:
-  Solver() {}
+  Solver() : new_varialbe(0) {}
 
   void preprocess() {
     int max_x = 0;
@@ -203,13 +203,31 @@ public:
            << sat_clauses.size() << endl;
     }
 
+    // 超頂点を作成
+    vector<int> index_to_super_node;
+    for (int i = 0; i < hole_internal_points.size(); i++) {
+      new_varialbe++;
+      vector<int> clause;
+      for (int j = 0; j < figure_points.size(); j++) {
+        int sat_index1 =
+            sat_index_from_fig_and_point(j, hole_internal_points[i]);
+        int sat_index2 = varialbe_num();
+        bin_clauses.push_back(mp(-sat_index1, sat_index2));
+        clause.push_back(sat_index1);
+      }
+      clause.push_back(-varialbe_num());
+      sat_clauses.push_back(clause);
+      index_to_super_node.push_back(varialbe_num());
+    }
+
     for (int i = 0; i < hole_internal_points.size(); i++) {
       pii xy1 = hole_internal_points[i];
       for (int j = i; j < hole_internal_points.size(); j++) {
         pii xy2 = hole_internal_points[j];
-        bool ok = true;
         if (intersected_points[i][j]) {
-          ok = false;
+          bin_clauses.push_back(
+              mp(-index_to_super_node[i], -index_to_super_node[j]));
+          continue;
         }
         ll new_dist = calc_dist(xy1, xy2);
         for (int k = 0; k < figure_num; k++) {
@@ -217,14 +235,7 @@ public:
           for (int l : neighbor_figs[k]) {
             pii xy4 = figure_points[l];
 
-            if (!ok) {
-              int sat_index1 = sat_index_from_fig_and_point(k, xy1);
-              int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
-              continue;
-            }
             ll previous_dist = calc_dist(xy3, xy4);
-
             ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
             ll right_value = epsilon * previous_dist;
             // 辺の長さが超える
@@ -242,11 +253,13 @@ public:
     // cerr << sat_clauses.size() << endl;
     output_cnf(output_file_name);
   }
-
+  int varialbe_num() {
+    return figure_num * hole_internal_points.size() + new_varialbe + 1;
+  }
   void output_cnf(std::string output_file_name) {
     ofstream os(output_file_name, ios::out | ios::binary);
     int clause_num = sat_clauses.size() + bin_clauses.size();
-    os << "p cnf " << figure_num * point_num() + 1 << " " << clause_num << "\n";
+    os << "p cnf " << varialbe_num() << " " << clause_num << "\n";
 
     for (const auto &bin : bin_clauses) {
       os << bin.first << " " << bin.second << " 0\n";
@@ -297,6 +310,7 @@ public:
   vector<vector<int>> sat_clauses;
   vector<pii> bin_clauses;
   vector<vector<char>> intersected_points;
+  int new_varialbe;
 };
 void print_usage() {
   std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf>"
