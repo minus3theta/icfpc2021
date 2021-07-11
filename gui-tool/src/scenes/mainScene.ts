@@ -964,13 +964,13 @@ export class MainScene extends Phaser.Scene {
         } else {
           for (let i = 0; i < vertices.length; i++) {
             // @ts-ignore
-            that.vertices[i].x = vertices[i][0] + geta;
-            // @ts-ignore
-            that.vertices[i].y = vertices[i][1] + geta;
+            that.moveTo(that.vertices[i], vertices[i][0] + geta, vertices[i][1] + geta);
             that.vertices[i].resetCircle();
           }
           // @ts-ignore
           that.drawFigure();
+          that.displayDislikes();
+          that.manageSaveButton();
         }
       }
     }
