@@ -56,6 +56,9 @@ const double EPS = 1e-9;
 const ll MOD = 1000000007;
 
 const int dx[] = {1, 0, -1, 0}, dy[] = {0, -1, 0, 1};
+const int LIT_UNKNOWN = 2;
+const int LIT_TRUE = 0;
+const int LIT_FALSE = 1;
 
 const ll THRESHOLD = 1000000;
 static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2) {
@@ -175,17 +178,73 @@ public:
     preprocess();
 
     // 制約を生成
+    assignments.resize(varialbe_num(), LIT_UNKNOWN);
+    // 辺の制約を作成
+    for (int i = 0; i < hole_internal_points.size(); i++) {
+      for (int j = 0; j < figure_points.size(); j++) {
+
+        for (int k : neighbor_figs[j]) {
+          ll previous_dist = calc_dist(figure_points[j], figure_points[k]);
+          vector<int> clause;
+          clause.push_back(
+              -sat_index_from_fig_and_point(j, hole_internal_points[i]));
+          for (int l = 0; l < hole_internal_points.size(); l++) {
+            if (intersected_points[i][l] ||
+                assignments[sat_index_from_fig_and_point(
+                    k, hole_internal_points[l])] == LIT_FALSE) {
+              continue;
+            }
+            ll new_dist =
+                calc_dist(hole_internal_points[i], hole_internal_points[l]);
+            ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
+            ll right_value = epsilon * previous_dist;
+            // 辺の長さがイプシロン以内
+            if (left_value <= right_value) {
+              clause.push_back(
+                  sat_index_from_fig_and_point(k, hole_internal_points[l]));
+            }
+          }
+          sat_clauses.push_back(clause);
+          // Found an unit clause
+          if (clause.size() == 1) {
+            assignments[sat_index_from_fig_and_point(
+                j, hole_internal_points[i])] = LIT_FALSE; // xi = false
+            break;
+          }
+        }
+      }
+      cerr << "Edge constraint!! " << i + 1 << "/"
+           << hole_internal_points.size() << endl;
+    }
+
+    // 頂点についての解
     // cerr << figure_num << " " << hole_internal_points.size() << endl;
     for (int i = 0; i < figure_num; i++) {
       // figの一つの頂点が必ずどれか一つinternal_pointsに存在
       {
         vector<int> clause;
+        bool already_satisfied = false;
         // (x_i_0_0 or x_i_0_1 or )
         for (int j = 0; j < hole_internal_points.size(); j++) {
+          if (assignments[sat_index_from_fig_and_point(
+                  i, hole_internal_points[j])] != LIT_UNKNOWN) {
+            if (assignments[sat_index_from_fig_and_point(
+                    i, hole_internal_points[j])] == LIT_TRUE) {
+              already_satisfied = true;
+              break;
+            } else {
+              continue;
+            }
+          }
           clause.push_back(
               sat_index_from_fig_and_point(i, hole_internal_points[j]));
         }
-        sat_clauses.push_back(clause);
+        if (!already_satisfied) {
+          if (clause.size() == 1) {
+            assignments[clause[0]] = LIT_TRUE;
+          }
+          sat_clauses.push_back(clause);
+        }
       }
 
       // figは唯一つのinternal_pointsに属する
@@ -193,9 +252,17 @@ public:
       for (int j = 0; j < hole_internal_points.size(); j++) {
         pii xy1 = hole_internal_points[j];
         int sat_index1 = sat_index_from_fig_and_point(i, xy1);
+        // satisfied -x1 = False
+        if (assignments[sat_index1] == LIT_FALSE) {
+          continue;
+        }
         for (int k = j + 1; k < hole_internal_points.size(); k++) {
           pii xy2 = hole_internal_points[k];
           int sat_index2 = sat_index_from_fig_and_point(i, xy2);
+          // satisfied -x2 = False
+          if (assignments[sat_index2] == LIT_FALSE) {
+            continue;
+          }
           bin_clauses.push_back(mp(-sat_index1, -sat_index2));
         }
       }
@@ -211,6 +278,9 @@ public:
       for (int j = 0; j < figure_points.size(); j++) {
         int sat_index1 =
             sat_index_from_fig_and_point(j, hole_internal_points[i]);
+        if (assignments[sat_index1] == LIT_FALSE) {
+          continue;
+        }
         int sat_index2 = varialbe_num();
         bin_clauses.push_back(mp(-sat_index1, sat_index2));
         clause.push_back(sat_index1);
@@ -221,33 +291,13 @@ public:
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      pii xy1 = hole_internal_points[i];
       for (int j = i; j < hole_internal_points.size(); j++) {
-        pii xy2 = hole_internal_points[j];
         if (intersected_points[i][j]) {
           bin_clauses.push_back(
               mp(-index_to_super_node[i], -index_to_super_node[j]));
-          continue;
-        }
-        ll new_dist = calc_dist(xy1, xy2);
-        for (int k = 0; k < figure_num; k++) {
-          pii xy3 = figure_points[k];
-          for (int l : neighbor_figs[k]) {
-            pii xy4 = figure_points[l];
-
-            ll previous_dist = calc_dist(xy3, xy4);
-            ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
-            ll right_value = epsilon * previous_dist;
-            // 辺の長さが超える
-            if (left_value > right_value) {
-              int sat_index1 = sat_index_from_fig_and_point(k, xy1);
-              int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
-            }
-          }
         }
       }
-      cerr << "Hole Internal Done!! " << i + 1 << "/"
+      cerr << "Intersect constraint!!" << i + 1 << "/"
            << hole_internal_points.size() << endl;
     }
     // cerr << sat_clauses.size() << endl;
@@ -310,6 +360,7 @@ public:
   vector<vector<int>> sat_clauses;
   vector<pii> bin_clauses;
   vector<vector<char>> intersected_points;
+  vector<int> assignments;
   int new_varialbe;
 };
 void print_usage() {
