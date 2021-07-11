@@ -135,6 +135,7 @@ func main() {
 	e.POST("/api/minimal/:id", postMinimal)
 	e.GET("/api/minimal/:id", getMinimal)
 	e.GET("/api/minimal", getMinimalAll)
+	e.GET("/api/submit", getOptimalSubmission)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -852,4 +853,44 @@ func finalScoreOfSolution(solution ResolvedSolution) (int, error) {
 	score := calcFinalScore(*problem, solution.Score.Dislike, minimal_dislike)
 
 	return score, nil
+}
+
+// Greedy, choosing solutions which don't use bonuses
+func optimalSubmission() ([]UserSolution, error) {
+	allSolutions, err := solutions()
+	if err != nil {
+		return nil, err
+	}
+
+	solutionMap := make(map[int][]UserSolution)
+	for _, solution := range allSolutions {
+		if len(solution.Solution.Bonuses) > 0 {
+			continue
+		}
+
+		s := solutionMap[solution.Problem_id]
+		if s == nil {
+			s = []UserSolution{}
+		}
+		solutionMap[solution.Problem_id] = append(s, solution)
+	}
+
+	selectedSolutions := []UserSolution{}
+	for _, solutions := range solutionMap {
+		sort.Slice(solutions, func(i, j int) bool {
+			return solutions[i].Dislike > solutions[j].Dislike
+		})
+		selectedSolutions = append(selectedSolutions, solutions[0])
+	}
+
+	return selectedSolutions, nil
+}
+
+func getOptimalSubmission(c echo.Context) error {
+	submission, err := optimalSubmission()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, submission)
 }
