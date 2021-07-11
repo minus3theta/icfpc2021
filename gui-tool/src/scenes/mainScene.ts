@@ -683,6 +683,10 @@ export class MainScene extends Phaser.Scene {
       // @ts-ignore
       answer.bonuses.push({ bonus: "GLOBALIST", problem: (<HTMLInputElement>document.getElementById('globalist-problem')).valueAsNumber });
     }
+    if (wallhack) {
+      // @ts-ignore
+      answer.bonuses.push({ bonus: "WALLHACK", problem: (<HTMLInputElement>document.getElementById('wallhack-problem')).valueAsNumber });
+    }
 
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(answer)], { type: 'text/json' }));
