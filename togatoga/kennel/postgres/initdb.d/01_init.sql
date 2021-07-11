@@ -26,6 +26,8 @@ CREATE TABLE bonuses (
     bonus bonus_type NOT NULL,
     position JSON NOT NULL
 );
+DROP INDEX IF EXISTS bonuses_source_index;
+CREATE INDEX bonuses_source_index ON bonuses (source);
 
 DROP TABLE IF EXISTS used_bonuses;
 CREATE TABLE used_bonuses (

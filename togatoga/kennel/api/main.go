@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -26,8 +27,14 @@ const (
 )
 
 type Vertex = []int
+type BonusInSolution struct {
+	Bonus   string `json:"bonus"`
+	Problem int    `json:"problem"`        // source problem ID
+	Edge    Vertex `json:"edge,omitempty"` // for specifying a edge by BREAK_A_LEG
+}
 type Solution struct {
-	Vertices []Vertex `json:"vertices" form:"vertices"`
+	Vertices []Vertex          `json:"vertices" form:"vertices"`
+	Bonuses  []BonusInSolution `json:"bonuses"`
 }
 
 type UserSolution struct {
@@ -44,9 +51,12 @@ type Figure struct {
 }
 
 type Bonus struct {
-	Bonus    string `json:"bonus"`
-	Problem  int    `json:"problem"`
-	Position Vertex `json:"position"`
+	Bonus       string `json:"bonus"`
+	Problem     int    `json:"problem"`
+	Position    Vertex `json:"position"`
+	SourceIndex int
+	Destination int
+	Id          int
 }
 
 type Problem struct {
@@ -64,6 +74,11 @@ type MinimalRecord struct {
 	Problem    int       `json:"problem_id"`
 	Dislike    int       `json:"minimal_dislike"`
 	Created_at time.Time `json:"created_at"`
+}
+
+type GotBonus struct {
+	SolutionId int
+	BonusId    int
 }
 
 type Score struct {
@@ -183,6 +198,29 @@ func insertProblem(problemId int, problem Problem, l echo.Logger) error {
 	return tx.Commit(context.Background())
 }
 
+func getAvailableBonuses(problemId int) ([]Bonus, error) {
+	sql := `
+		SELECT
+			id, source, source_index, destination, bonus, position
+		FROM bonuses
+		WHERE destination = $1`
+	rows, err := db.Query(context.Background(), sql, problemId)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	bonuses := make([]Bonus, 0)
+	for rows.Next() {
+		var bonus Bonus
+		err = rows.Scan(&bonus.Id, &bonus.Problem, &bonus.SourceIndex, &bonus.Destination, &bonus.Bonus, &bonus.Position)
+		if err != nil {
+			return nil, err
+		}
+		bonuses = append(bonuses, bonus)
+	}
+	return bonuses, nil
+}
+
 // Handler
 func getSolutions(c echo.Context) error {
 	sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions"
@@ -222,13 +260,35 @@ func postSolutions(c echo.Context) error {
 	// ss := string(bytes)
 
 	problem, err := getProblemById(int(id))
+	if err != nil {
+		c.Echo().Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+	availableBonuses, err := getAvailableBonuses(int(id))
+	if err != nil {
+		c.Echo().Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+	usedBonusIds := make([]int, 0)
+	for _, usedBonus := range solution.Bonuses {
+		for _, availableBonus := range availableBonuses {
+			if usedBonus.Problem == availableBonus.Problem && usedBonus.Bonus == availableBonus.Bonus {
+				usedBonusIds = append(usedBonusIds, availableBonus.Id)
+				break
+			}
+		}
+	}
+	if len(usedBonusIds) != len(solution.Bonuses) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{"invalid bonuses"})
+	}
 	score, err := getScore(*problem, *solution)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{err.Error()})
 	}
 	sql := `
 	INSERT INTO solutions(problem_id, user_name, solution, dislike, created_at)
-	VALUES ($1, $2, $3, $4, current_timestamp)`
+	VALUES ($1, $2, $3, $4, current_timestamp)
+	RETURNING id`
 	// fmt.Println(db)
 	tx, err := db.Begin(context.Background())
 
@@ -238,12 +298,79 @@ func postSolutions(c echo.Context) error {
 	}
 
 	defer tx.Rollback(context.Background())
-	_, err = tx.Exec(context.Background(), sql, id, user_name, solution, score.Dislike)
+	solutionId := 0
+	err = tx.QueryRow(context.Background(), sql, id, user_name, solution, score.Dislike).Scan(&solutionId)
 
+	c.Echo().Logger.Info(solutionId)
 	if err != nil {
 		c.Echo().Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
+
+	if len(score.Bonuses) > 0 {
+		sql := `
+			SELECT
+				id, source, source_index, destination, bonus, position
+			FROM bonuses
+			WHERE source = $1`
+		rows, err := tx.Query(context.Background(), sql, id)
+		defer rows.Close()
+		if err != nil {
+			c.Echo().Logger.Error(err)
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+		}
+		bonuses := make([]Bonus, 0)
+		for rows.Next() {
+			var bonus Bonus
+			err := rows.Scan(&bonus.Id, &bonus.Problem, &bonus.SourceIndex, &bonus.Destination, &bonus.Bonus, &bonus.Position)
+			if err != nil {
+				c.Echo().Logger.Error(err)
+				return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+			}
+			bonuses = append(bonuses, bonus)
+		}
+		sort.Slice(bonuses, func(i, j int) bool { return bonuses[i].SourceIndex < bonuses[j].SourceIndex })
+		obtainedBonuses := make([]GotBonus, 0)
+		for _, bonusIndex := range score.Bonuses {
+			obtainedBonuses = append(obtainedBonuses, GotBonus{solutionId, bonuses[bonusIndex].Id})
+		}
+		sql = `
+			INSERT INTO got_bonuses
+				(solution_id, bonus_id)
+			VALUES
+				($1, $2)`
+		//		TODO: use papared statement
+		//		const stmtKey = "insert_got_bonuses_statement"
+		//		_, err := tx.Prepare(context.Background(), stmtKey, sql)
+		//		if err != nil {
+		//			c.Echo().Logger.Error(err)
+		//			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+		//		}
+		for _, b := range obtainedBonuses {
+			_, err = tx.Exec(context.Background(), sql, b.SolutionId, b.BonusId)
+			if err != nil {
+				c.Echo().Logger.Error(err)
+				return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+			}
+		}
+	}
+
+	if len(solution.Bonuses) > 0 {
+		sql := `
+			INSERT INTO used_bonuses
+				(solution_id, bonus_id)
+			VALUES
+				($1, $2)`
+		// TODO: use prepared statement
+		for _, bonusId := range usedBonusIds {
+			_, err = tx.Exec(context.Background(), sql, solutionId, bonusId)
+			if err != nil {
+				c.Echo().Logger.Error(err)
+				return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+			}
+		}
+	}
+
 	err = tx.Commit(context.Background())
 	if err != nil {
 		c.Echo().Logger.Error(err)
@@ -458,38 +585,107 @@ func dislikes(hole []Position, vertices []Position) int {
 	}
 	return ans
 }
+func checkLengthConstraint(problem Problem, distance, originalDistance int, bonus string) bool {
+	expansion := math.Abs(float64(distance)/float64(originalDistance) - 1.0)
+	expansionLimit := float64(problem.Epsilon) / 1000000.0
+	if bonus == BonusKindGlobalist {
+		expansionLimit *= float64(len(problem.Figure.Edges))
+	}
+	return expansion > expansionLimit
+}
 func getScore(problem Problem, solution Solution) (Score, error) {
+	bonus := BonusInSolution{}
+	if len(solution.Bonuses) > 0 {
+		bonus = solution.Bonuses[0]
+	}
+	if bonus.Bonus == BonusKindBreadALeg {
+		if len(problem.Figure.Vertices)+1 != len(solution.Vertices) {
+			return Score{Dislike: -1}, errors.New(fmt.Sprintf("invalid number of vertices: expected %v but %v", len(problem.Figure.Vertices)+1, len(solution.Vertices)))
+		}
+	} else {
+		if len(problem.Figure.Vertices) != len(solution.Vertices) {
+			return Score{Dislike: -1}, errors.New(fmt.Sprintf("invalid number of vertices: expected %v but %v", len(problem.Figure.Vertices), len(solution.Vertices)))
+		}
+	}
 	hole := make([]Position, 0, len(problem.Hole))
+	obtainedBonuses := make(map[int]struct{}, 0)
 	for _, v := range problem.Hole {
 		hole = append(hole, Position{x: v[0], y: v[1]})
 	}
 	vertices := make([]Position, 0, len(solution.Vertices))
 	for _, v := range solution.Vertices {
 		vertices = append(vertices, Position{x: v[0], y: v[1]})
-	}
-	for _, p := range vertices {
-		if !p.IsInHole(hole) {
-			return Score{Dislike: -1}, errors.New(fmt.Sprintf("(%v, %v) is not in the hole", p.x, p.y))
+		for bonusIndex, bonus := range problem.Bonuses {
+			if v[0] == bonus.Position[0] && v[1] == bonus.Position[1] {
+				obtainedBonuses[bonusIndex] = struct{}{}
+			}
 		}
+	}
+	cntOutOfHole := 0
+	var outOfHoleVertexIndex *int = nil
+	for i, p := range vertices {
+		if !p.IsInHole(hole) {
+			if bonus.Bonus == BonusKindWallHack {
+				cntOutOfHole += 1
+				outOfHoleVertexIndex = new(int)
+				*outOfHoleVertexIndex = i
+			} else {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("(%v, %v) is not in the hole", p.x, p.y))
+			}
+		}
+	}
+	if cntOutOfHole > 1 {
+		return Score{Dislike: -1}, errors.New("The number of vertices of out the hole exceeds the limit 1")
 	}
 	for _, e := range problem.Figure.Edges {
 		i := e[0]
 		j := e[1]
 		v1 := vertices[i]
 		v2 := vertices[j]
-		if intersectHole(v1, v2, hole) {
-			return Score{Dislike: -1}, errors.New(fmt.Sprintf("edge between (%v, %v) and (%v, %v) intersect with hole", v1.x, v1.y, v2.x, v2.y))
-		}
+
+		// calculate distance between v1 and v2
 		d := v1.SquareDistance(v2)
 		originalVertex1 := problem.Figure.Vertices[i]
 		originalVertex2 := problem.Figure.Vertices[j]
 		u1 := Position{x: originalVertex1[0], y: originalVertex1[1]}
 		u2 := Position{x: originalVertex2[0], y: originalVertex2[1]}
 		originalDist := u1.SquareDistance(u2)
-		expantion := math.Abs(float64(d)/float64(originalDist) - 1.0)
-		if float64(problem.Epsilon)/1000000.0 < expantion {
-			return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v1.x, v1.y, v2.x, v2.y))
+		if bonus.Bonus == BonusKindBreadALeg &&
+			((i == bonus.Edge[0] && j == bonus.Edge[1]) ||
+				(i == bonus.Edge[1] && j == bonus.Edge[0])) {
+			lastIndex := len(solution.Vertices) - 1
+			v3 := vertices[lastIndex]
+			d1 := v1.SquareDistance(v3)
+			d2 := v2.SquareDistance(v3)
+			if checkLengthConstraint(problem, 4*d1, originalDist, bonus.Bonus) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v1.x, v1.y, v3.x, v3.y))
+			}
+			if checkLengthConstraint(problem, 4*d2, originalDist, bonus.Bonus) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v2.x, v2.y, v3.x, v3.y))
+			}
+			// check if the edge does not intersect with the hole
+			if intersectHole(v1, v3, hole) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("edge between (%v, %v) and (%v, %v) intersect with hole", v1.x, v1.y, v3.x, v3.y))
+			}
+			if intersectHole(v2, v3, hole) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("edge between (%v, %v) and (%v, %v) intersect with hole", v2.x, v2.y, v3.x, v3.y))
+			}
+		} else {
+			if checkLengthConstraint(problem, d, originalDist, bonus.Bonus) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v1.x, v1.y, v2.x, v2.y))
+			}
+			if outOfHoleVertexIndex != nil && (i == *outOfHoleVertexIndex || j == *outOfHoleVertexIndex) {
+				continue
+			}
+			// check if the edge does not intersect with the hole
+			if intersectHole(v1, v2, hole) {
+				return Score{Dislike: -1}, errors.New(fmt.Sprintf("edge between (%v, %v) and (%v, %v) intersect with hole", v1.x, v1.y, v2.x, v2.y))
+			}
 		}
 	}
-	return Score{Dislike: dislikes(hole, vertices)}, nil
+	bonuses := make([]int, 0, len(obtainedBonuses))
+	for key := range obtainedBonuses {
+		bonuses = append(bonuses, key)
+	}
+	return Score{Dislike: dislikes(hole, vertices), Bonuses: bonuses}, nil
 }
