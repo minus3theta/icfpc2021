@@ -28,10 +28,10 @@ const App = () => {
       <h1>Gon the Fox</h1>
       <div className={classes.root}>
         <Grid container spacing={3}>
-          <Grid item xs={3} key="problem_list">
+          <Grid item xs={2} key="problem_list">
             <ProblemList />
           </Grid>
-          <Grid item xs={9} key="problem_detail">
+          <Grid item xs={10} key="problem_detail">
             <ProblemDetail />
           </Grid>
         </Grid>

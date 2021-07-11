@@ -5,8 +5,10 @@ import SolutionTable from './solutionTable';
 export default function ProblemDetail() {
   return (
     <React.Fragment>
-      <ProblemCanvas />
-      <SolutionTable />
+      <div style={{display: "flex"}}>
+        <ProblemCanvas />
+        <SolutionTable />
+      </div>
     </React.Fragment>
   );
 }
