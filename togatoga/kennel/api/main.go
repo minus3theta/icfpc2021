@@ -443,7 +443,7 @@ func getSolutionsOfProblem(c echo.Context) error {
 		UserSolution
 		Problem Problem `db:"problem"`
 	}
-	var responses []Response
+	responses := []Response{}
 	for rows.Next() {
 		var result SQLResult
 		err = rows.Scan(&result.Id, &result.Problem_id, &result.User_name, &result.Solution, &result.Dislike, &result.Problem)
