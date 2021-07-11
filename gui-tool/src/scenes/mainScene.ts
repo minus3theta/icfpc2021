@@ -8,9 +8,6 @@ let globalist = false;
 let wallhack = false;
 let physicsMode = false;
 
-const velocityAttenuateRate = 0.5;
-const springRate = 0.3;
-
 export class Vertex {
   public x;
   public y;
@@ -517,16 +514,28 @@ export class MainScene extends Phaser.Scene {
   }
 
   attenuateVelocity(): void {
+    const velocityAttenuateRate = 1 - this.getVelocityAttenuateRate();
     for (const v of this.vertices) {
       v.vx *= velocityAttenuateRate;
       v.vy *= velocityAttenuateRate;
     }
   }
 
+  getVelocityAttenuateRate(): number {
+    // @ts-ignore
+    return document.getElementById('attenute-rate-text').value;
+  }
+
+  getSpringRate(): number {
+    // @ts-ignore
+    return document.getElementById('spring-rate-text').value;
+  }
+
   applyTension(): void {
     for (const e of this.edges) {
       const vec = new Phaser.Math.Vector2(e.v[0].x - e.v[1].x, e.v[0].y - e.v[1].y).normalize();
       const len = e.calcLength();
+      const springRate = this.getSpringRate();
       if (len < e.baseLength) {
         const overRate = 1 - len / e.baseLength;
         e.v[0].vx += overRate * vec.x * springRate;
