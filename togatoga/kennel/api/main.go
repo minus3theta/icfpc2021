@@ -386,28 +386,88 @@ func postSolutions(c echo.Context) error {
 	return c.JSON(http.StatusOK, Response{Score: score, SolutionId: solutionId})
 }
 func getSolutionsOfProblem(c echo.Context) error {
-	// TODO
-
-	// sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions WHERE problem_id = $1"
-	// id := c.Param("id")
-
-	// rows, err := db.Query(context.Background(), sql, id)
-	// if err != nil {
-	// 	return c.JSON(http.StatusInternalServerError, err)
-	// }
-	// uss := []UserSolution{}
-	// for rows.Next() {
-	// 	var us UserSolution
-	// 	err = rows.Scan(&us.Id, &us.Problem_id, &us.User_name, &us.Solution, &us.Created_at)
-
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusInternalServerError, err)
-	// 	}
-	// 	uss = append(uss, us)
-	// }
-
-	// return c.JSON(http.StatusOK, uss)
-	return c.JSON(http.StatusOK, []Solution{})
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{err.Error()})
+	}
+	bonus := c.QueryParam("use_bonnus")
+	limit := int64(20)
+	if limitStr := c.QueryParam("limit"); limitStr != "" {
+		limit, err = strconv.ParseInt(limitStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{err.Error()})
+		}
+	}
+	sql, args := func() (string, []interface{}) {
+		if bonus == "" {
+			sql := `
+				SELECT
+					solutions.id, solutions.problem_id, solutions.user_name, solutions.solution, solutions.dislike,
+					problems.problem
+				FROM solutions
+				JOIN problems ON problems.id = solutions.problem_id
+				WHERE problems.id = $1
+				ORDER BY solutions.dislike DESC LIMIT $2`
+			return sql, []interface{}{id, limit}
+		} else {
+			sql := `
+				SELECT
+					solutions.id, solutions.problem_id, solutions.user_name, solutions.solution, solutions.dislike,
+					problems.problem
+				FROM solutions
+				JOIN problems ON problems.id = solutions.problem_id
+				JOIN used_bonuses ON used_bonuses.solution_id = solutions.id
+				JOIN bonuses ON bonuses.id = used_bonuses.bonus_id
+				WHERE
+					problems.id = $1 AND bonuses.bonus = $2
+				ORDER BY solutions.dislike DESC LIMIT $3`
+			return sql, []interface{}{id, bonus, limit}
+		}
+	}()
+	rows, err := db.Query(context.Background(), sql, args...)
+	defer rows.Close()
+	if err != nil {
+		c.Echo().Logger.Error(err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+	type Response struct {
+		Pose       Solution `json:"pose"`
+		Dislike    int      `json:"dislike"`
+		GotBonuses []int    `json:"gotBonuses"`
+		SolutionId int      `json:"solutionId"`
+		ProblemId  int      `json:"problemId"`
+		UserName   string   `json:"userName"`
+	}
+	type SQLResult struct {
+		UserSolution
+		Problem Problem `db:"problem"`
+	}
+	var responses []Response
+	for rows.Next() {
+		var result SQLResult
+		err = rows.Scan(&result.Id, &result.Problem_id, &result.User_name, &result.Solution, &result.Dislike, &result.Problem)
+		if err != nil {
+			c.Echo().Logger.Error(err)
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+		}
+		response := Response{
+			Pose:       result.Solution,
+			Dislike:    result.Dislike,
+			SolutionId: result.Id,
+			ProblemId:  result.Problem_id,
+			UserName:   result.User_name,
+		}
+		for i, bonus := range result.Problem.Bonuses {
+			for _, p := range response.Pose.Vertices {
+				if bonus.Position[0] == p[0] && bonus.Position[1] == p[1] {
+					response.GotBonuses = append(response.GotBonuses, i)
+					break
+				}
+			}
+		}
+		responses = append(responses, response)
+	}
+	return c.JSON(http.StatusOK, responses)
 }
 func getSolution(c echo.Context) error {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -421,12 +481,6 @@ func getSolution(c echo.Context) error {
 		FROM solutions
 		JOIN problems ON problems.id = solutions.problem_id
 		WHERE solutions.id = $1`
-	rows, err := db.Query(context.Background(), sql, id)
-	defer rows.Close()
-	if err != nil {
-		c.Echo().Logger.Error(err)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
-	}
 	type Response struct {
 		Pose       Solution `json:"pose"`
 		Dislike    int      `json:"dislike"`
