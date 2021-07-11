@@ -1,6 +1,11 @@
 import React from 'react';
 import clsx from 'clsx';
-import { createStyles, lighten, makeStyles, Theme } from '@material-ui/core/styles';
+import {
+  createStyles,
+  lighten,
+  makeStyles,
+  Theme,
+} from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
@@ -18,15 +23,29 @@ import FilterListIcon from '@material-ui/icons/FilterList';
 import { Button, Radio } from '@material-ui/core';
 import { Solution, store } from '../app/store';
 
-function DownloadButton(props: {solution: Solution}) {
+function DownloadButton(props: { solution: Solution }) {
   const sol = props.solution;
   const problemId = store.getState().selected + 1;
-  const blob = new Blob([JSON.stringify(sol.pose)], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(sol.pose)], {
+    type: 'application/json',
+  });
   const url = URL.createObjectURL(blob);
 
   return (
-    <Button href={url} download={"output_" + problemId + "_" + sol.dislike + "_" + sol.solutionId + ".json"}>download</Button>
-  )
+    <Button
+      href={url}
+      download={
+        'output_' +
+        problemId +
+        '_' +
+        sol.dislike +
+        '_' +
+        sol.solutionId +
+        '.json'
+      }>
+      download
+    </Button>
+  );
 }
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -43,8 +62,11 @@ type Order = 'asc' | 'desc';
 
 function getComparator<Key extends keyof any>(
   order: Order,
-  orderBy: Key,
-): (a: { [key in Key]: number | string }, b: { [key in Key]: number | string }) => number {
+  orderBy: Key
+): (
+  a: { [key in Key]: number | string },
+  b: { [key in Key]: number | string }
+) => number {
   return order === 'desc'
     ? (a, b) => descendingComparator(a, b, orderBy)
     : (a, b) => -descendingComparator(a, b, orderBy);
@@ -60,7 +82,7 @@ function stableSort<T>(array: T[], comparator: (a: T, b: T) => number) {
   return stabilizedThis.map((el) => el[0]);
 }
 
-type TableField = "solutionId"|"dislike";
+type TableField = 'solutionId' | 'dislike';
 
 interface HeadCell {
   disablePadding: boolean;
@@ -70,13 +92,21 @@ interface HeadCell {
 }
 
 const headCells: HeadCell[] = [
-  { id: 'solutionId', numeric: false, disablePadding: true, label: 'SolutionID' },
+  {
+    id: 'solutionId',
+    numeric: false,
+    disablePadding: true,
+    label: 'SolutionID',
+  },
   { id: 'dislike', numeric: true, disablePadding: false, label: 'Dislike' },
 ];
 
 interface EnhancedTableProps {
   classes: ReturnType<typeof useStyles>;
-  onRequestSort: (event: React.MouseEvent<unknown>, property: TableField) => void;
+  onRequestSort: (
+    event: React.MouseEvent<unknown>,
+    property: TableField
+  ) => void;
   order: Order;
   orderBy: string;
   rowCount: number;
@@ -84,27 +114,25 @@ interface EnhancedTableProps {
 
 function EnhancedTableHead(props: EnhancedTableProps) {
   const { classes, order, orderBy, rowCount, onRequestSort } = props;
-  const createSortHandler = (property: TableField) => (event: React.MouseEvent<unknown>) => {
-    onRequestSort(event, property);
-  };
+  const createSortHandler =
+    (property: TableField) => (event: React.MouseEvent<unknown>) => {
+      onRequestSort(event, property);
+    };
 
   return (
     <TableHead>
       <TableRow>
-        <TableCell padding="checkbox">
-        </TableCell>
+        <TableCell padding="checkbox"></TableCell>
         {headCells.map((headCell) => (
           <TableCell
             key={headCell.id}
             align={headCell.numeric ? 'right' : 'left'}
             padding={headCell.disablePadding ? 'none' : 'normal'}
-            sortDirection={orderBy === headCell.id ? order : false}
-          >
+            sortDirection={orderBy === headCell.id ? order : false}>
             <TableSortLabel
               active={orderBy === headCell.id}
               direction={orderBy === headCell.id ? order : 'asc'}
-              onClick={createSortHandler(headCell.id)}
-            >
+              onClick={createSortHandler(headCell.id)}>
               {headCell.label}
               {orderBy === headCell.id ? (
                 <span className={classes.visuallyHidden}>
@@ -138,7 +166,7 @@ const useToolbarStyles = makeStyles((theme: Theme) =>
     title: {
       flex: '1 1 100%',
     },
-  }),
+  })
 );
 
 interface EnhancedTableToolbarProps {
@@ -151,7 +179,11 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
 
   return (
     <Toolbar>
-      <Typography className={classes.title} variant="h6" id="tableTitle" component="div">
+      <Typography
+        className={classes.title}
+        variant="h6"
+        id="tableTitle"
+        component="div">
         Solutions
       </Typography>
       <Tooltip title="Filter list">
@@ -186,15 +218,15 @@ const useStyles = makeStyles((theme: Theme) =>
       top: 20,
       width: 1,
     },
-  }),
+  })
 );
 
-export default function EnhancedTable(prop: {rows: Solution[]}) {
+export default function EnhancedTable(prop: { rows: Solution[] }) {
   const rows = prop.rows;
   const classes = useStyles();
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<TableField>('dislike');
-  const [selected, setSelected] = React.useState<string|null>(null);
+  const [selected, setSelected] = React.useState<string | null>(null);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [filterCal, setFilterCal] = React.useState(false); // TODO:
@@ -207,7 +239,10 @@ export default function EnhancedTable(prop: {rows: Solution[]}) {
     }
   };
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: TableField) => {
+  const handleRequestSort = (
+    event: React.MouseEvent<unknown>,
+    property: TableField
+  ) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
@@ -225,26 +260,32 @@ export default function EnhancedTable(prop: {rows: Solution[]}) {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
   const isSelected = (name: string) => selected === name;
 
-  const emptyRows = rowsPerPage - Math.min(rowsPerPage, rows.length - page * rowsPerPage);
+  const emptyRows =
+    rowsPerPage - Math.min(rowsPerPage, rows.length - page * rowsPerPage);
 
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <EnhancedTableToolbar handleFilter={()=>{setFilterCal(!filterCal)}}/>
+        <EnhancedTableToolbar
+          handleFilter={() => {
+            setFilterCal(!filterCal);
+          }}
+        />
         <TableContainer>
           <Table
             className={classes.table}
             aria-labelledby="tableTitle"
-            size='small'
-            aria-label="enhanced table"
-          >
+            size="small"
+            aria-label="enhanced table">
             <EnhancedTableHead
               classes={classes}
               order={order}
@@ -268,19 +309,24 @@ export default function EnhancedTable(prop: {rows: Solution[]}) {
                       aria-checked={isItemSelected}
                       tabIndex={-1}
                       key={row.solutionId}
-                      selected={isItemSelected}
-                    >
+                      selected={isItemSelected}>
                       <TableCell padding="checkbox">
                         <Radio
                           checked={isItemSelected}
                           inputProps={{ 'aria-labelledby': labelId }}
                         />
                       </TableCell>
-                      <TableCell component="th" id={labelId} scope="row" padding="none">
+                      <TableCell
+                        component="th"
+                        id={labelId}
+                        scope="row"
+                        padding="none">
                         {row.solutionId}
                       </TableCell>
                       <TableCell align="right">{row.dislike}</TableCell>
-                      <TableCell align="right"><DownloadButton solution={row}/></TableCell>
+                      <TableCell align="right">
+                        <DownloadButton solution={row} />
+                      </TableCell>
                     </TableRow>
                   );
                 })}

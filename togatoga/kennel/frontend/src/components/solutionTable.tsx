@@ -29,11 +29,15 @@ export default function SolutionTable() {
       };
       f();
     }
-  }, [selectedIdx]);
+  }, [selectedIdx, problem]);
 
   return (
     <React.Fragment>
-      {problem?.solutions === null ? <div></div> : <EnhancedTable rows={problem?.solutions!}/>}
+      {problem?.solutions === null ? (
+        <div></div>
+      ) : (
+        <EnhancedTable rows={problem?.solutions!} />
+      )}
     </React.Fragment>
   );
 }
