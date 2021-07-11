@@ -337,6 +337,12 @@ export default function EnhancedTable(prop: {
                         )}
                       </TableCell>
                       <TableCell align="right">
+                        {"get: " + row.gotBonuses?.toString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        {"use: " + row.pose.bonus?.toString()}
+                      </TableCell>
+                      <TableCell align="right">
                         <DownloadButton solution={row} />
                       </TableCell>
                     </TableRow>
