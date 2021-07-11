@@ -93,18 +93,31 @@ class BonusVertex {
     this.bonus = bonus;
     this.problem = problem;
     this.scene = scene;
-    this.graphics = scene.add.graphics({ fillStyle: { color: 0xFFFF00, alpha: 0.7 } });
+    if (this.bonus === 'GLOBALIST') {
+      this.graphics = scene.add.graphics({
+        lineStyle: { width: 3, color: 0x999900 },
+        fillStyle: { color: 0xFFFF00, alpha: 0.7 }
+      });
+    } else if (this.bonus === 'BREAK_A_LEG') {
+      this.graphics = scene.add.graphics({
+        lineStyle: { width: 3, color: 0x996600 },
+        fillStyle: { color: 0xFFA500, alpha: 0.7 }
+      });
+    } else if (this.bonus === 'WALLHACK') {
+      this.graphics = scene.add.graphics({
+        lineStyle: { width: 3, color: 0x000099 },
+        fillStyle: { color: 0x0000FF, alpha: 0.7 }
+      });
+    }
   }
 
   draw(): void {
-    if (this.unlocked) {
-      this.graphics.defaultFillColor = 0xFFA500;
-    } else {
-      this.graphics.defaultFillColor = 0xFFFF00;
-    }
     this.graphics.clear();
     const circle = new Phaser.Geom.Circle(this.x * displayRate, this.y * displayRate, 30);
     this.graphics.fillCircleShape(circle);
+    if (this.unlocked) {
+      this.graphics.strokeCircleShape(circle);
+    }
   }
 }
 
