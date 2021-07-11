@@ -65,7 +65,22 @@ export default function ProblemDetail() {
           </ListItem>
           <ListItem key="epsilon">
             <ListItemText
-              primary={"Epsilon: " + problem?.problem.epsilon}
+              primary={"Epsilon: " + problem?.problem.epsilon + "  (" + problem?.problem?.epsilon! / 1000000 + ")"}
+            />
+          </ListItem>
+          <ListItem key="holes">
+            <ListItemText
+              primary={"Holes: " + problem?.problem.hole.length}
+            />
+          </ListItem>
+          <ListItem key="edges">
+            <ListItemText
+              primary={"Edges: " + problem?.problem.figure.edges.length}
+            />
+          </ListItem>
+          <ListItem key="vertices">
+            <ListItemText
+              primary={"Vertices: " + problem?.problem.figure.vertices.length}
             />
           </ListItem>
           {problem?.problem?.bonuses?.map((bonus, i) => {
