@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <bits/types/FILE.h>
 #include <bitset>
 #include <cassert>
 #include <cfloat>
