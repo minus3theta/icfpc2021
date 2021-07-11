@@ -380,7 +380,9 @@ export class MainScene extends Phaser.Scene {
         that.selectRectangleGraphic.fillRectShape(rect);
 
         for (const v of that.vertices) {
-          if (rect.contains(v.x * displayRate, v.y * displayRate)) {
+          const included = that.selectedVertices.includes(v);
+          const contained = rect.contains(v.x * displayRate, v.y * displayRate);
+          if ((included || contained) && (!(pointer.event.ctrlKey || pointer.event.metaKey) || !(included && contained))) {
             v.select(true);
           } else {
             v.unselect();
@@ -435,9 +437,11 @@ export class MainScene extends Phaser.Scene {
         that.pushHistory();
       }
       if (!that.dragging && !that.selecting) {
-        that.areaSelected = false;
-        that.selectedVertices = [];
-        for (const v of that.vertices) v.unselect();
+        if (!(pointer.event.shiftKey || pointer.event.ctrlKey || pointer.event.metaKey)) {
+          that.areaSelected = false;
+          that.selectedVertices = [];
+          for (const v of that.vertices) v.unselect();
+        }
 
         const roundX = Math.round(pointer.x / displayRate);
         const roundY = Math.round(pointer.y / displayRate);
