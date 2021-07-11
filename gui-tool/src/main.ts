@@ -61,3 +61,29 @@ fetchButton.addEventListener('click', async () => {
   const problem_json = await fetchProblem(problemId);
   game.scene.start('mainScene', { filename: 'problem' + problemId, problemInfo: problem_json });
 });
+
+
+const onLoad = async () => {
+  if (location.hash === "") {
+    return;
+  }
+  const q = JSON.parse(decodeURIComponent(location.hash).substr(1))
+  const problemId = q["problemId"];
+  const problem_json = await fetchProblem(problemId);
+  game.scene.start('mainScene', { filename: 'problem' + problemId + '.json', problemInfo: problem_json });
+
+  const pose = q["pose"];
+  if (pose != null) {
+    setTimeout(() => {
+      const answer_button = document.getElementById('answer-upload-button') as HTMLInputElement;
+      const answer_file = new File([JSON.stringify(pose)], "output" + problemId + ".json", {type: "application/json"})
+      const dt = new DataTransfer();
+      dt.items.add(answer_file);
+      answer_button.files = dt.files;
+      const ev = new Event("change");
+      answer_button.dispatchEvent(ev);
+    }, 1000);
+  }
+}
+
+window.addEventListener("load", onLoad);
