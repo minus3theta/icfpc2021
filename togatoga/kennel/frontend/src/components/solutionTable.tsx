@@ -28,8 +28,14 @@ export default function SolutionTable() {
         );
       };
       f();
+      dispatch(
+        updateProblem({
+          ...problem,
+          need_fetch_solution: false,
+        })
+      );
     }
-  }, [selectedIdx, problem]);
+  }, [problem]);
 
   return (
     <React.Fragment>

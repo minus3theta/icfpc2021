@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MinimalDislike,
   store,
@@ -9,11 +9,13 @@ import { useDispatch } from 'react-redux';
 import {
   Button,
   createStyles,
+  Grid,
   List,
   ListItem,
   ListItemText,
   makeStyles,
   Paper,
+  TextField,
   Theme,
   Typography,
 } from '@material-ui/core';
@@ -47,7 +49,9 @@ export default function ProblemProperties() {
       selectedIdx: state.selected,
     };
   });
+  const [newMinimal, setNewMinimal] = useState<string>('');
   const dispatch = useDispatch();
+
   const fetchMinimal = async () => {
     const res = await fetch(location.origin + '/api/minimal');
     const json = (await res.json()) as MinimalDislike[];
@@ -57,15 +61,17 @@ export default function ProblemProperties() {
         updateProblem({
           ...p,
           minimal_dislike: e,
+          need_fetch_minimal: false
         })
       );
     });
   };
 
   useEffect(() => {
-    if (problem?.solutions.length === 0) {
+    if (problem?.need_fetch_minimal) {
       fetchMinimal();
     }
+    setNewMinimal('');
   }, [selectedIdx]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,8 +92,30 @@ export default function ProblemProperties() {
         '/solutions/' +
         store.getState().user_name;
       const res = await fetch(location.origin + api_path, param);
-      console.log(res); // TODO: アップロードが成功したかを知らせる
+      console.log(res);
+      alert(JSON.stringify(await res.json()));
     }
+  };
+
+  const postMinmal = async () => {
+    const data = {
+      fetch_at: Date.now().toString(),
+      minimal_dislike: newMinimal,
+      problemId: selectedIdx + 1,
+    };
+    const param = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify(data),
+    };
+
+    const api_path = '/api/minimal/' + problem!.id;
+    store.getState().user_name;
+    const res = await fetch(location.origin + api_path, param);
+    console.log(res);
+    alert(JSON.stringify(await res.json()));
   };
 
   return (
@@ -110,48 +138,64 @@ export default function ProblemProperties() {
           </Button>
         </label>
       </Typography>
-      <div className={classes.demo}>
-        <List dense={true}>
-          <ListItem key="minimal_dislike">
-            <ListItemText
-              primary={
-                'Minimal Dislike: ' + problem?.minimal_dislike?.minimal_dislike
-              }
-            />
-          </ListItem>
-          <ListItem key="epsilon">
-            <ListItemText
-              primary={
-                'Epsilon: ' +
-                problem?.problem.epsilon +
-                '  (' +
-                problem?.problem?.epsilon! / 1000000 +
-                ')'
-              }
-            />
-          </ListItem>
-          <ListItem key="holes">
-            <ListItemText primary={'Holes: ' + problem?.problem.hole.length} />
-          </ListItem>
-          <ListItem key="edges">
-            <ListItemText
-              primary={'Edges: ' + problem?.problem.figure.edges.length}
-            />
-          </ListItem>
-          <ListItem key="vertices">
-            <ListItemText
-              primary={'Vertices: ' + problem?.problem.figure.vertices.length}
-            />
-          </ListItem>
-          {problem?.problem?.bonuses?.map((bonus, i) => {
-            return (
-              <ListItem key={'bonus' + i}>
-                <ListItemText primary={JSON.stringify(bonus)} />
+
+      <Grid container spacing={3}>
+        <Grid item xs={4} key="problem_list">
+          <div className={classes.demo}>
+            <List dense={true}>
+              <ListItem key="minimal_dislike">
+                <ListItemText
+                  primary={
+                    'Minimal Dislike: ' + problem?.minimal_dislike?.minimal_dislike
+                  }
+                />
+                <TextField
+                  id="standard-basic"
+                  label="New Minimal"
+                  value={newMinimal}
+                  onChange={(e) => {
+                    setNewMinimal(e.target.value);
+                  }}
+                />
+                <Button onClick={postMinmal} variant="contained">
+                  Update
+                </Button>
               </ListItem>
-            );
-          })}
-        </List>
-      </div>
+              <ListItem key="epsilon">
+                <ListItemText
+                  primary={
+                    'Epsilon: ' +
+                    problem?.problem.epsilon +
+                    '  (' +
+                    problem?.problem?.epsilon! / 1000000 +
+                    ')'
+                  }
+                />
+              </ListItem>
+              <ListItem key="holes">
+                <ListItemText primary={'Holes: ' + problem?.problem.hole.length} />
+              </ListItem>
+              <ListItem key="edges">
+                <ListItemText
+                  primary={'Edges: ' + problem?.problem.figure.edges.length}
+                />
+              </ListItem>
+              <ListItem key="vertices">
+                <ListItemText
+                  primary={'Vertices: ' + problem?.problem.figure.vertices.length}
+                />
+              </ListItem>
+              {problem?.problem?.bonuses?.map((bonus, i) => {
+                return (
+                  <ListItem key={'bonus' + i}>
+                    <ListItemText primary={JSON.stringify(bonus)} />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </div>
+        </Grid>
+      </Grid>
     </Paper>
   );
 }
