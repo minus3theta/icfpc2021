@@ -25,6 +25,7 @@ const (
 	BonusKindGlobalist = "GLOBALIST"
 	BonusKindBreadALeg = "BREAK_A_LEG"
 	BonusKindWallHack  = "WALLHACK"
+	BonusKindSuperflex = "SUPERFLEX"
 )
 
 type Vertex = []int
