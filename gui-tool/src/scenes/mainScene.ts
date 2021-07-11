@@ -391,6 +391,7 @@ export class MainScene extends Phaser.Scene {
           if (!that.areaSelected) {
             // @ts-ignore
             that.selectedVertices.push(v);
+            break;
           }
         }
       }
