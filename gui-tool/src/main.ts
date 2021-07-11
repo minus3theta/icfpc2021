@@ -31,7 +31,7 @@ export class Game extends Phaser.Game {
 const game = new Game(config);
 
 const problemIdSelectBox = <HTMLSelectElement>document.getElementById('problem-id-select-box');
-for (let i = 1; i <= 106; i++) {
+for (let i = 1; i <= 132; i++) {
   const elem = document.createElement('option');
   elem.value = String(i);
   elem.innerText = String(i);
