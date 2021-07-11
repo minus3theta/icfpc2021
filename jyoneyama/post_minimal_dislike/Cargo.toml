@@ -1,0 +1,16 @@
+[package]
+name = "post_minimal_dislike"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.42"
+easy-scraper = "0.2.0"
+reqwest = { version = "0.11.4", features = ["json"] }
+serde = { version = "1.0.126", features = ["derive"] }
+serde_derive = "1.0.126"
+serde_json = "1.0.64"
+structopt = "0.3.22"
+tokio = { version = "1.8.1", features = ["rt", "rt-multi-thread", "macros"] }
