@@ -5,6 +5,7 @@ const geta = 2;
 let displayRate = 5;
 let maxValue = 0;
 let globalist = false;
+let wallhack = false;
 
 export class Vertex {
   public x;
@@ -261,11 +262,15 @@ class HolePolygon {
   }
 
   contains(v: Vertex): boolean {
-    const eps = 0.000000001;
-    return Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y - eps)
-           || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y - eps)
-           || Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y + eps)
-           || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y + eps);
+    const eps = 0.0000001;
+    return Phaser.Geom.Polygon.Contains(this.polygon, v.x, v.y - eps)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x, v.y + eps)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y - eps)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x - eps, v.y + eps)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y - eps)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y)
+      || Phaser.Geom.Polygon.Contains(this.polygon, v.x + eps, v.y + eps);
   }
 }
 
@@ -315,6 +320,7 @@ export class MainScene extends Phaser.Scene {
     this.updateUndoButton();
     this.updateUploadAnswerButton();
     this.updateGlobalistCheckbox();
+    this.updateWallhackCheckbox();
     this.updateDisplayIdCheckbox();
     this.updateVerticalFlipButton();
     this.updateHorizontalFlipButton();
@@ -330,6 +336,7 @@ export class MainScene extends Phaser.Scene {
     this.drawBonusVertices();
     this.displayDislikes();
     this.manageGlobalist();
+    this.manageWallhack();
     this.manageDisplayId();
 
     this.selectRectangleGraphic = this.add.graphics({
@@ -508,6 +515,7 @@ export class MainScene extends Phaser.Scene {
     v.y = Math.max(Math.min(y, maxValue + 2 * geta), 0);
     v.inHole = this.holePolygon.contains(v);
     v.resetCircle();
+    this.manageSaveButton();
   }
 
   drawLattice(): void {
@@ -616,8 +624,11 @@ export class MainScene extends Phaser.Scene {
         }
       }
     }
+    let outOfHoleCount = 0;
     for (const v of this.vertices) {
-      if (!v.inHole) return false;
+      if (!v.inHole) outOfHoleCount++;
+      if (!wallhack && outOfHoleCount === 1
+          || outOfHoleCount === 2) return false;
     }
     return true;
   }
@@ -864,6 +875,12 @@ export class MainScene extends Phaser.Scene {
     this.manageSaveButton();
   }
 
+  manageWallhack(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('wallhack-checkbox');
+    wallhack = checkbox.checked;
+    this.manageSaveButton();
+  }
+
   manageDisplayId(): void {
     const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
     if (checkbox.checked) {
@@ -1013,6 +1030,12 @@ export class MainScene extends Phaser.Scene {
     const globalistCheckbox = <HTMLInputElement>document.getElementById('globalist-checkbox');
 
     globalistCheckbox.addEventListener('change', this.manageGlobalist.bind(this));
+  }
+
+  updateWallhackCheckbox(): void {
+    const wallhackCheckbox = <HTMLInputElement>document.getElementById('wallhack-checkbox');
+
+    wallhackCheckbox.addEventListener('change', this.manageWallhack.bind(this));
   }
 
   updateDisplayIdCheckbox(): void {
