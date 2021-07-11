@@ -95,6 +95,15 @@ type Score struct {
 	Bonuses []int `json:"bonuses"` // index of bonuses array in problem
 }
 
+type SolutionResponse struct {
+	Pose       Solution `json:"pose"`
+	Dislike    int      `json:"dislike"`
+	GotBonuses []int    `json:"gotBonuses"`
+	SolutionId int      `json:"solutionId"`
+	ProblemId  int      `json:"problemId"`
+	UserName   string   `json:"userName"`
+}
+
 type ErrorResponse struct {
 	Message string `json:"message"`
 }
@@ -499,14 +508,6 @@ func getSolution(c echo.Context) error {
 		FROM solutions
 		JOIN problems ON problems.id = solutions.problem_id
 		WHERE solutions.id = $1`
-	type Response struct {
-		Pose       Solution `json:"pose"`
-		Dislike    int      `json:"dislike"`
-		GotBonuses []int    `json:"gotBonuses"`
-		SolutionId int      `json:"solutionId"`
-		ProblemId  int      `json:"problemId"`
-		UserName   string   `json:"userName"`
-	}
 	type SQLResult struct {
 		UserSolution
 		Problem Problem `db:"problem"`
@@ -517,7 +518,7 @@ func getSolution(c echo.Context) error {
 		c.Echo().Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
-	response := Response{
+	response := SolutionResponse{
 		Pose:       result.Solution,
 		Dislike:    result.Dislike,
 		SolutionId: result.Id,
@@ -856,7 +857,7 @@ func finalScoreOfSolution(solution ResolvedSolution) (int, error) {
 }
 
 // Greedy, choosing solutions which don't use bonuses
-func optimalSubmission() ([]UserSolution, error) {
+func optimalSubmission() ([]SolutionResponse, error) {
 	allSolutions, err := solutions()
 	if err != nil {
 		return nil, err
@@ -875,12 +876,22 @@ func optimalSubmission() ([]UserSolution, error) {
 		solutionMap[solution.Problem_id] = append(s, solution)
 	}
 
-	selectedSolutions := []UserSolution{}
+	selectedSolutions := []SolutionResponse{}
 	for _, solutions := range solutionMap {
 		sort.Slice(solutions, func(i, j int) bool {
 			return solutions[i].Dislike > solutions[j].Dislike
 		})
-		selectedSolutions = append(selectedSolutions, solutions[0])
+		selected := solutions[0]
+		resp := SolutionResponse{
+			Pose:       selected.Solution,
+			Dislike:    selected.Dislike,
+			SolutionId: selected.Id,
+			ProblemId:  selected.Problem_id,
+			UserName:   selected.User_name,
+		}
+		// TODO: Set resp.gotBonuses
+		resp.GotBonuses = []int{}
+		selectedSolutions = append(selectedSolutions, resp)
 	}
 
 	return selectedSolutions, nil
