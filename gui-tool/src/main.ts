@@ -2,7 +2,7 @@ import 'phaser';
 import { fetchProblem } from './scenes/fetch_problem';
 import {MainScene} from "./scenes/mainScene";
 
-export const fps: number = 24;
+export const fps: number = 12;
 export const canvasSize = 800;
 
 const config: Phaser.Types.Core.GameConfig = {

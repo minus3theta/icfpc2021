@@ -6,6 +6,7 @@ let displayRate = 5;
 let maxValue = 0;
 let globalist = false;
 let wallhack = false;
+let physicsMode = false;
 
 export class Vertex {
   public x;
@@ -322,6 +323,7 @@ export class MainScene extends Phaser.Scene {
     this.updateGlobalistCheckbox();
     this.updateWallhackCheckbox();
     this.updateDisplayIdCheckbox();
+    this.updatePhysicsModeCheckbox();
     this.updateVerticalFlipButton();
     this.updateHorizontalFlipButton();
     this.updateRotateButton();
@@ -462,6 +464,39 @@ export class MainScene extends Phaser.Scene {
         that.manageFlipButtons();
       }
     });
+  }
+
+  update() {
+    if (physicsMode) {
+      for (const v of this.vertices) {
+        if (v.inHole) continue;
+        const pt = new Phaser.Geom.Point(v.x * displayRate, v.y * displayRate);
+        let nearestDist = 10000000;
+        let nearestPoint: Phaser.Geom.Point | null = null;
+        for (const e of this.holeEdges) {
+          const nearPt = Phaser.Geom.Line.GetNearestPoint(e.line, pt);
+          const dist = Phaser.Math.Distance.BetweenPoints(pt, nearPt);
+          if (Phaser.Geom.Intersects.PointToLine(nearPt, e.line) && dist < nearestDist) {
+            nearestDist = dist;
+            nearestPoint = nearPt;
+          }
+          const dist1 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointA());
+          if (dist1 < nearestDist) {
+            nearestDist = dist1;
+            nearestPoint = e.line.getPointA();
+          }
+          const dist2 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointB());
+          if (dist2 < nearestDist) {
+            nearestDist = dist2;
+            nearestPoint = e.line.getPointB();
+          }
+        }
+        if (nearestPoint) {
+          this.moveTo(v, nearestPoint.x / displayRate, nearestPoint.y / displayRate);
+        }
+      }
+      this.drawFigure();
+    }
   }
 
   applyGeta(): void {
@@ -652,6 +687,12 @@ export class MainScene extends Phaser.Scene {
   calcDistance(v1: Vertex, v2: Vertex): number {
     const dx = v1.x - v2.x;
     const dy = v1.y - v2.y;
+    return dx*dx + dy*dy;
+  }
+
+  calcDistanceArray(v1: Array<number>, v2: Array<number>): number {
+    const dx = v1[0] - v2[0];
+    const dy = v1[1] - v2[1];
     return dx*dx + dy*dy;
   }
 
@@ -885,6 +926,11 @@ export class MainScene extends Phaser.Scene {
     this.manageSaveButton();
   }
 
+  managePhysicsMode(): void {
+    const checkbox = <HTMLInputElement>document.getElementById('physics-mode-checkbox');
+    physicsMode = checkbox.checked;
+  }
+
   manageDisplayId(): void {
     const checkbox = <HTMLInputElement>document.getElementById('display-id-checkbox');
     if (checkbox.checked) {
@@ -1040,6 +1086,12 @@ export class MainScene extends Phaser.Scene {
     const wallhackCheckbox = <HTMLInputElement>document.getElementById('wallhack-checkbox');
 
     wallhackCheckbox.addEventListener('change', this.manageWallhack.bind(this));
+  }
+
+  updatePhysicsModeCheckbox(): void {
+    const physicsModeCheckbox = <HTMLInputElement>document.getElementById('physics-mode-checkbox');
+
+    physicsModeCheckbox.addEventListener('change', this.managePhysicsMode.bind(this));
   }
 
   updateDisplayIdCheckbox(): void {
