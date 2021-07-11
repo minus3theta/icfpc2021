@@ -35,6 +35,23 @@ class Handler(BaseHTTPRequestHandler):
             with open(f'./json/solutions_{i}.json') as f:
                 result_json = json.load(f)
                 self.wfile.write(json.dumps(result_json).encode('UTF-8'))
+        elif self.path == '/api/minimal':
+            self.send_response(200)
+            self.send_header('Content-type','application/json')
+            self.end_headers()
+            result_json = [
+                {
+                    "problem_id": 1,
+                    "minimal_dislike": 624,
+                    "created_at": "2021-07-10T21:24:24.834583Z"
+                },
+                {
+                    "problem_id": 2,
+                    "minimal_dislike": 193,
+                    "created_at": "2021-07-10T22:24:13.281485Z"
+                }
+            ]
+            self.wfile.write(json.dumps(result_json).encode('UTF-8'))
 
     def do_POST(self):
         service_names = []
