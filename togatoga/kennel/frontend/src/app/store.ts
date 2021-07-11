@@ -14,7 +14,7 @@ export type MinimalDislike = {
   problem_id: number;
   minimal_dislike: number;
   created_at: string;
-}
+};
 
 export type Bonus = {
   bonus: string;
@@ -53,7 +53,7 @@ export type ProblemStatus = {
   need_fetch_problem: boolean;
   solutions: Solution[];
   need_fetch_solution: boolean;
-  minimal_dislike: MinimalDislike|null;
+  minimal_dislike: MinimalDislike | null;
 };
 
 export type State = {
@@ -74,7 +74,7 @@ const initialProblem = (): Problem => {
 const initialState: State = {
   problems: [],
   selected: 0,
-  user_name: "anonymous",
+  user_name: 'anonymous',
 };
 
 for (let i = 0; i < n_problem; i++) {
@@ -122,7 +122,8 @@ const persistConfig = {
   storage,
 };
 
-export const { updateProblem, setSelected, updateName, resetStateExceptName } = slice.actions;
+export const { updateProblem, setSelected, updateName, resetStateExceptName } =
+  slice.actions;
 
 export const store = configureStore({
   reducer: persistReducer(persistConfig, slice.reducer),

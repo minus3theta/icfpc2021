@@ -33,7 +33,11 @@ export default function SolutionTable() {
 
   return (
     <React.Fragment>
-      {problem?.solutions === null ? <div></div> : <EnhancedTable rows={problem?.solutions!}/>}
+      {problem?.solutions === null ? (
+        <div></div>
+      ) : (
+        <EnhancedTable rows={problem?.solutions!} />
+      )}
     </React.Fragment>
   );
 }

@@ -1,6 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { store, updateName, resetStateExceptName, useSelector } from './app/store';
+import {
+  store,
+  updateName,
+  resetStateExceptName,
+  useSelector,
+} from './app/store';
 import { Provider, useDispatch } from 'react-redux';
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
@@ -27,15 +32,15 @@ const useStyles = makeStyles((theme: Theme) =>
       margin: theme.spacing(4, 0, 2),
       fontSize: 30,
       width: '200px',
-      float: "left"
+      float: 'left',
     },
     name_form: {
-      float: "right",
+      float: 'right',
       '& > *': {
         margin: theme.spacing(1),
         width: '25ch',
       },
-    }
+    },
   })
 );
 
@@ -47,23 +52,31 @@ const App = () => {
     };
   });
   const dispatch = useDispatch();
-  const onChangeName =  (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(updateName(e.target.value));
   };
 
   const purge = () => {
     dispatch(resetStateExceptName(user_name));
-  }
+  };
 
   return (
     <React.Fragment>
       <div>
         <Typography variant="h1" className={classes.title}>
           Gon the Fox
-          <Button onClick={purge}><CachedIcon/></Button>
+          <Button onClick={purge}>
+            <CachedIcon />
+          </Button>
         </Typography>
         <form className={classes.name_form} noValidate autoComplete="off">
-          <TextField id="outlined-basic" label="UserName" variant="outlined" value={user_name} onChange={onChangeName} />
+          <TextField
+            id="outlined-basic"
+            label="UserName"
+            variant="outlined"
+            value={user_name}
+            onChange={onChangeName}
+          />
         </form>
       </div>
       <div className={classes.root}>
