@@ -3,6 +3,7 @@ import { Solution, updateProblem, useSelector } from '../app/store';
 import { useDispatch } from 'react-redux';
 
 import EnhancedTable from './enhancedTable';
+import ProblemCanvas from './problemCanvas';
 
 export default function SolutionTable() {
   const { problem, selectedIdx } = useSelector((state) => {
@@ -42,7 +43,19 @@ export default function SolutionTable() {
       {problem?.solutions === null ? (
         <div></div>
       ) : (
-        <EnhancedTable rows={problem?.solutions!} />
+        <EnhancedTable
+          rows={problem?.solutions!}
+          minimal_dislike={problem?.minimal_dislike?.minimal_dislike!}
+          k={
+            1000 *
+            Math.log2(
+              (problem?.problem.figure.vertices.length! *
+                problem?.problem.figure.edges.length! *
+                problem?.problem.hole.length!) /
+                6
+            )
+          }
+        />
       )}
     </React.Fragment>
   );
