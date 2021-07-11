@@ -231,13 +231,12 @@ func getAvailableBonuses(problemId int) ([]Bonus, error) {
 	return bonuses, nil
 }
 
-// Handler
-func getSolutions(c echo.Context) error {
+func solutions() ([]UserSolution, error) {
 	sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions"
 
 	rows, err := db.Query(context.Background(), sql)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return nil, err
 	}
 	uss := []UserSolution{}
 	for rows.Next() {
@@ -245,13 +244,24 @@ func getSolutions(c echo.Context) error {
 		err = rows.Scan(&us.Id, &us.Problem_id, &us.User_name, &us.Solution, &us.Created_at)
 
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, err)
+			return nil, err
 		}
 		uss = append(uss, us)
 	}
 
+	return uss, nil
+}
+
+// Handler
+func getSolutions(c echo.Context) error {
+	uss, err := solutions()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+
 	return c.JSON(http.StatusOK, uss)
 }
+
 func postSolutions(c echo.Context) error {
 	solution := new(Solution)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
