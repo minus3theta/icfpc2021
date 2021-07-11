@@ -166,23 +166,11 @@ public:
     ifs.close();
     cerr << "Done!! " << __func__ << endl;
   }
-
-  void solve(const std::string &input_file_name,
-             const std::string &internal_file_name,
-             const std::string &output_file_name) {
-    cout << input_file_name << " " << internal_file_name << " "
-         << output_file_name << endl;
-    input(input_file_name);
-    // 内点全列挙
-    input_internal_points(internal_file_name);
-    preprocess();
-
-    // 制約を生成
-    assignments.resize(varialbe_num(), LIT_UNKNOWN);
+  void add_edge_constraints() {
     // 辺の制約を作成
+    assignments.resize(varialbe_num(), LIT_UNKNOWN);
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j = 0; j < figure_points.size(); j++) {
-
         for (int k : neighbor_figs[j]) {
           ll previous_dist = calc_dist(figure_points[j], figure_points[k]);
           vector<int> clause;
@@ -216,9 +204,9 @@ public:
       cerr << "Edge constraint!! " << i + 1 << "/"
            << hole_internal_points.size() << endl;
     }
+  }
 
-    // 頂点についての解
-    // cerr << figure_num << " " << hole_internal_points.size() << endl;
+  void add_node_constraints() {
     for (int i = 0; i < figure_num; i++) {
       // figの一つの頂点が必ずどれか一つinternal_pointsに存在
       {
@@ -269,7 +257,8 @@ public:
       cerr << "Done!! " << i + 1 << "/" << figure_num << " "
            << sat_clauses.size() << endl;
     }
-
+  }
+  void add_segment_conflict_constraints() {
     // 超頂点を作成
     vector<int> index_to_super_node;
     for (int i = 0; i < hole_internal_points.size(); i++) {
@@ -300,9 +289,72 @@ public:
       cerr << "Intersect constraint!!" << i + 1 << "/"
            << hole_internal_points.size() << endl;
     }
-    // cerr << sat_clauses.size() << endl;
+  }
+
+  void add_at_least_one_point_on_node_constraints() {
+    for (int i = 0; i < hole_points.size(); i++) {
+      // (x_0_i or x_1_i or x_2_i or x_3_i or ... x_n_i)
+      vector<int> clause;
+      for (int j = 0; j < figure_points.size(); j++) {
+        clause.push_back(sat_index_from_fig_and_point(j, hole_points[i]));
+      }
+      sat_clauses.push_back(clause);
+    }
+  }
+  void solve(const std::string &input_file_name,
+             const std::string &internal_file_name,
+             const std::string &output_file_name) {
+
+    input(input_file_name);
+    // 内点全列挙
+    input_internal_points(internal_file_name);
+
+    preprocess();
+
+    add_edge_constraints();
+    add_node_constraints();
+    add_segment_conflict_constraints();
     output_cnf(output_file_name);
   }
+
+  void reduce_internal_points(const string &internal_file_name) {
+    vector<pii> new_hole_internal_points;
+    set<pll> hole_point_set(hole_points.begin(), hole_points.end());
+    for (const auto &point : hole_internal_points) {
+
+      if (hole_point_set.count(point) ||
+          (point.first % 1 == 0 && point.second % 1 == 0)) {
+        new_hole_internal_points.push_back(point);
+      }
+    }
+    hole_internal_points = new_hole_internal_points;
+    // 差っ引いたinternalポイントをファイルに保存しておく
+    const string output_file_name = internal_file_name + "_reduced.txt";
+    ofstream os(output_file_name, ios::out | ios::binary);
+    os << hole_internal_points.size() << "\n";
+    for (auto &point : hole_internal_points) {
+      os << point.first << " " << point.second << "\n";
+    }
+    os.close();
+  }
+
+  void solve_zero_dislikes(const std::string &input_file_name,
+                           const std::string &internal_file_name,
+                           const std::string &output_file_name) {
+
+    input(input_file_name);
+    // 内点全列挙
+    input_internal_points(internal_file_name);
+    reduce_internal_points(internal_file_name);
+    preprocess();
+
+    add_edge_constraints();
+    add_node_constraints();
+    add_segment_conflict_constraints();
+    add_at_least_one_point_on_node_constraints();
+    output_cnf(output_file_name);
+  }
+
   int varialbe_num() {
     return figure_num * hole_internal_points.size() + new_varialbe + 1;
   }
@@ -374,7 +426,7 @@ int main(int argc, char *argv[]) {
     print_usage();
     exit(1);
   }
-  s.solve(argv[1], argv[2], argv[3]);
+  s.solve_zero_dislikes(argv[1], argv[2], argv[3]);
 
   return 0;
 }
