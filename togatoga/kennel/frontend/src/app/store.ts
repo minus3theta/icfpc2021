@@ -7,6 +7,12 @@ import { n_problem } from './config';
 
 export type Pair = [number, number];
 
+export type MinimalDislike = {
+  problem_id: number;
+  minimal_dislike: number;
+  created_at: string;
+}
+
 export type Bonus = {
   bonus: string;
   problem: number;
@@ -31,7 +37,7 @@ export type Solution = {
   pose: {
     bonus?: string;
     edge?: Pair;
-    problem: number;
+    problem?: number;
     vertices: Pair[];
   };
   dislike: number;
@@ -44,6 +50,7 @@ export type ProblemStatus = {
   need_fetch_problem: boolean;
   solutions: Solution[];
   need_fetch_solution: boolean;
+  minimal_dislike: MinimalDislike|null;
 };
 
 export type State = {
@@ -72,6 +79,7 @@ for (let i = 0; i < n_problem; i++) {
     need_fetch_problem: true,
     solutions: [] as Solution[],
     need_fetch_solution: true,
+    minimal_dislike: null,
   });
 }
 

@@ -1,12 +1,88 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ProblemCanvas from './problemCanvas';
 import SolutionTable from './solutionTable';
+import { MinimalDislike, store, updateProblem, useSelector } from '../app/store';
+import { useDispatch } from 'react-redux';
+import { createStyles, List, ListItem, ListItemText, makeStyles, Theme, Typography } from '@material-ui/core';
+
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
+    root: {
+      flexGrow: 1,
+      maxWidth: 752,
+    },
+    demo: {
+      backgroundColor: theme.palette.background.paper,
+    },
+    title: {
+      margin: theme.spacing(4, 0, 2),
+    },
+  }),
+);
 
 export default function ProblemDetail() {
+  const classes = useStyles();
+  const { problem, selectedIdx } = useSelector((state) => {
+    return {
+      problem: state.problems[state.selected],
+      selectedIdx: state.selected,
+    };
+  });
+  const dispatch = useDispatch();
+  const fetchMinimal = async () => {
+    const res = await fetch(
+      location.origin + '/api/minimal'
+    );
+    const json = (await res.json()) as MinimalDislike[];
+    json.forEach(e => {
+      const p = store.getState().problems[e.problem_id-1]!;
+      dispatch(
+        updateProblem({
+          ...p,
+          minimal_dislike: e
+        })
+      );
+    });
+  }
+
+  useEffect(() => {
+    if (problem?.solutions.length === 0) {
+      fetchMinimal();
+    }
+  }, [selectedIdx]);
+
   return (
     <React.Fragment>
-      <ProblemCanvas />
-      <SolutionTable />
+      <Typography variant="h6" className={classes.title}>
+        Problem {selectedIdx + 1}
+      </Typography>
+      <div className={classes.demo}>
+        <List dense={true}>
+          <ListItem key="minimal_dislike">
+            <ListItemText
+              primary={"Minimal Dislike: " + problem?.minimal_dislike?.minimal_dislike}
+            />
+          </ListItem>
+          <ListItem key="epsilon">
+            <ListItemText
+              primary={"Epsilon: " + problem?.problem.epsilon}
+            />
+          </ListItem>
+          {problem?.problem?.bonuses?.map((bonus, i) => {
+            return (
+              <ListItem key={"bonus" + i}>
+                <ListItemText
+                  primary={JSON.stringify(bonus)}
+                />
+              </ListItem>
+            )
+          })}
+        </List>
+      </div>
+      <div style={{display: "flex"}}>
+        <ProblemCanvas />
+        <SolutionTable />
+      </div>
     </React.Fragment>
   );
 }

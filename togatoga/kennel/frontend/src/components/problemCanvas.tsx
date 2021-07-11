@@ -30,15 +30,19 @@ export default function ProblemCanvas() {
       };
       f();
     }
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    canvas.width = width;
-    canvas.height = height;
-    const canvasContext = canvas.getContext('2d');
-    setContext(canvasContext);
-  }, [selectedIdx]);
+    if (context === null) {
+      const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+      canvas.width = width;
+      canvas.height = height;
+      const canvasContext = canvas.getContext('2d');
+      setContext(canvasContext);
+    }
+  }, [problem]);
   useEffect(() => {
     if (context !== null) {
-      updateBoard(problem?.problem!, context);
+      setTimeout(() => {
+        updateBoard(problem?.problem!, context);
+      }, 500);
     }
   }, [context, selectedIdx, problem]);
 
