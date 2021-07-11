@@ -481,6 +481,7 @@ export class MainScene extends Phaser.Scene {
       this.physicsProcessing = true;
       this.attenuateVelocity();
       this.applyTension();
+      this.applyRepulsion();
       this.moveByVelocity();
       this.putVerticesIntoHole();
       this.drawFigure();
@@ -539,6 +540,11 @@ export class MainScene extends Phaser.Scene {
     return document.getElementById('spring-rate-text').value;
   }
 
+  getRepulsionRate(): number {
+    // @ts-ignore
+    return document.getElementById('repulsion-rate-text').value;
+  }
+
   applyTension(): void {
     for (const e of this.edges) {
       const vec = new Phaser.Math.Vector2(e.v[0].x - e.v[1].x, e.v[0].y - e.v[1].y).normalize();
@@ -556,6 +562,23 @@ export class MainScene extends Phaser.Scene {
         e.v[0].vy -= overRate * vec.y * springRate;
         e.v[1].vx += overRate * vec.x * springRate;
         e.v[1].vy += overRate * vec.y * springRate;
+      }
+    }
+  }
+
+  applyRepulsion(): void {
+    const repulsionRate = this.getRepulsionRate() * 10;
+    for (let i = 0; i < this.vertices.length; i++) {
+      const v1 = this.vertices[i];
+      for (let j = i+1; j < this.vertices.length; j++) {
+        const v2 = this.vertices[j];
+        let vec = new Phaser.Math.Vector2(v1.x - v2.x, v1.y - v2.y);
+        const dist = vec.length();
+        vec = vec.normalize();
+        v1.vx += vec.x / dist / dist * repulsionRate;
+        v1.vy += vec.y / dist / dist * repulsionRate;
+        v2.vx -= vec.x / dist / dist * repulsionRate;
+        v2.vy -= vec.y / dist / dist * repulsionRate;
       }
     }
   }
