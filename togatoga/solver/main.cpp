@@ -51,7 +51,7 @@ using min_priority_queue = priority_queue<T, std::vector<T>, std::greater<T>>;
 
 const int INF = 1 << 29;
 const ll LL_INF = 1LL << 60;
-const double EPS = 1e-9;
+
 const ll MOD = 1000000007;
 
 const int dx[] = {1, 0, -1, 0}, dy[] = {0, -1, 0, 1};
@@ -60,17 +60,116 @@ const int LIT_TRUE = 0;
 const int LIT_FALSE = 1;
 
 const ll THRESHOLD = 1000000;
-static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2) {
+typedef complex<double> P;
+typedef pair<P, P> L;
+double const EPS = 1e-10;
+namespace std {
+bool operator<(const P &a, const P &b) {
+  return fabs(real(a) - real(b)) < EPS ? imag(a) < imag(b) : real(a) < real(b);
+}
+} // namespace std
+bool equal(double a, double b) { return abs(a - b) < EPS; }
+double dot(P a, P b) { return a.real() * b.real() + a.imag() * b.imag(); }
+double cross(P a, P b) { return a.real() * b.imag() - a.imag() * b.real(); }
+
+//  a -> b -> c に進む時　の b -> c の向き
+int ccw(P a, P b, P c) {
+  b -= a;
+  c -= a;
+  if (cross(b, c) > EPS)
+    return 1; //反時計回り
+  if (cross(b, c) < -EPS)
+    return -1; // 時計回り
+  if (dot(b, c) < -EPS)
+    return 2; // c -- a -- b の一直線
+  if (norm(b) < norm(c))
+    return -2; // a -- b -- c の一直線
+  return 0;    // a -- c -- b の一直線?
+}
+
+// 線分と線分の交差判定（交差していたらtrue）
+bool isIntersect(L s1, L s2) {
+  // ccw による判定だけだと, 二線分が同一直線上にあるときに間違うため、追加
+  if (max(real(s1.first), real(s1.second)) + EPS <
+          min(real(s2.first), real(s2.second)) ||
+      max(imag(s1.first), imag(s1.second)) + EPS <
+          min(imag(s2.first), imag(s2.second)) ||
+      max(real(s2.first), real(s2.second)) + EPS <
+          min(real(s1.first), real(s1.second)) ||
+      max(imag(s2.first), imag(s2.second)) + EPS <
+          min(imag(s1.first), imag(s1.second)))
+    return false;
+  return (ccw(s1.first, s1.second, s2.first) *
+                  ccw(s1.first, s1.second, s2.second) <=
+              0 &&
+          ccw(s2.first, s2.second, s1.first) *
+                  ccw(s2.first, s2.second, s1.second) <=
+              0);
+}
+
+// ２直線間の交点
+P crossPoint(L l, L m) {
+  double A = cross(l.second - l.first, m.second - m.first);
+  double B = cross(l.second - l.first, l.second - m.first);
+  if (fabs(A) < EPS && fabs(B) < EPS)
+    return m.first;
+
+  return m.first + B / A * (m.second - m.first);
+}
+
+/*
+   多角形の包含判定（点が多角形の内部・境界・外部のどこにあるか）
+   戻り値 0:外部 1:境界 2:内部
+   O(n)
+*/
+int contains(vector<P> v, P p) {
+  bool in = false;
+  for (int i = 0; i < (int)v.size(); i++) {
+    P a = v[i] - p;
+    P b = v[(i + 1) % v.size()] - p;
+    if (imag(a) > imag(b))
+      swap(a, b);
+    if ((imag(a) <= 0 || equal(imag(a), 0.0)) && EPS < imag(b))
+      if (cross(a, b) < -EPS)
+        in = !in;
+    if (equal(cross(a, b), 0.0) && dot(a, b) < EPS)
+      return 1;
+  }
+  return in ? 2 : 0;
+}
+
+//多角形の中に線分があるか
+bool polygonInSegment(L s, const vector<P> &v) {
+  vector<P> ps;
+  int n = v.size();
+  for (int i = 0; i < n; i++) {
+    L s2 = L(v[i], v[(i + 1) % n]);
+    if (isIntersect(s, s2))
+      ps.push_back(crossPoint(s, s2));
+  }
+  sort(ps.begin(), ps.end());
+  for (int i = 1; i < (int)ps.size(); i++) {
+    if (contains(v, (ps[i - 1] + ps[i]) / 2.0) == 0)
+      return false;
+  }
+  return true;
+}
+
+static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2,
+                         const vector<P> &polygon) {
   ll x1, y1, x2, y2, x3, y3, x4, y4;
   tie(x1, y1) = e1.first;
   tie(x2, y2) = e1.second;
   tie(x3, y3) = e2.first;
   tie(x4, y4) = e2.second;
+
+  L s = mp(P(x1, y1), P(x2, y2));
+
   const ll ta = (x3 - x4) * (y1 - y3) + (y3 - y4) * (x3 - x1);
   const ll tb = (x3 - x4) * (y2 - y3) + (y3 - y4) * (x3 - x2);
   const ll tc = (x1 - x2) * (y3 - y1) + (y1 - y2) * (x1 - x3);
   const ll td = (x1 - x2) * (y4 - y1) + (y1 - y2) * (x1 - x4);
-  return ta * tb < 0 && tc * td < 0;
+  return ta * tb < 0 && tc * td < 0 || !polygonInSegment(s, polygon);
 }
 
 class Solver {
@@ -105,6 +204,10 @@ public:
     intersected_points.resize(hole_internal_points.size(),
                               vector<int>(hole_internal_points.size(), 0));
 
+    vector<P> polygon;
+    for (auto &point : hole_points) {
+      polygon.push_back(P(point.first, point.second));
+    }
     for (int i = 0; i < hole_internal_points.size(); i++) {
       pll xy1 = hole_internal_points[i];
       for (int j = i + 1; j < hole_internal_points.size(); j++) {
@@ -113,15 +216,15 @@ public:
           int l = (k + 1) % hole_points.size();
           pll xy3 = hole_points[k];
           pll xy4 = hole_points[l];
-          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
+          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4), polygon)) {
             intersected_points[i][j] = 1;
             intersected_points[j][i] = 1;
             break;
           }
-        }    
+        }
       }
     }
-    
+
     cerr << "Preprocess Done!! " << __func__ << endl;
   }
 
@@ -270,7 +373,7 @@ public:
   }
   void add_segment_conflict_constraints() {
     // 超頂点を作成
-    //vector<int> index_to_super_node;
+    // vector<int> index_to_super_node;
     // for (int i = 0; i < hole_internal_points.size(); i++) {
     //   new_variable++;
     //   vector<int> clause;
@@ -290,9 +393,11 @@ public:
       for (int j = i + 1; j < hole_internal_points.size(); j++) {
         if (intersected_points[i][j]) {
           for (int k = 0; k < figure_points.size(); k++) {
-            for (int l: neighbor_figs[k]) {
-              int sat_index1 = sat_index_from_fig_and_point(k, hole_internal_points[i]);
-              int sat_index2 = sat_index_from_fig_and_point(l, hole_internal_points[j]);
+            for (int l : neighbor_figs[k]) {
+              int sat_index1 =
+                  sat_index_from_fig_and_point(k, hole_internal_points[i]);
+              int sat_index2 =
+                  sat_index_from_fig_and_point(l, hole_internal_points[j]);
               bin_clauses.push_back(mp(-sat_index1, -sat_index2));
             }
           }
