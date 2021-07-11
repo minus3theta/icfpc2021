@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { MinimalDislike, store, updateProblem, useSelector } from '../app/store';
 import { useDispatch } from 'react-redux';
-import { createStyles, List, ListItem, ListItemText, makeStyles, Paper, Theme, Typography } from '@material-ui/core';
+import { Button, createStyles, List, ListItem, ListItemText, makeStyles, Paper, Theme, Typography } from '@material-ui/core';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -15,6 +15,12 @@ const useStyles = makeStyles((theme: Theme) =>
     title: {
       margin: theme.spacing(4, 0, 2),
     },
+    input: {
+      display: 'none',
+    },
+    button: {
+      margin: theme.spacing(0, 2, 0),
+    }
   }),
 );
 
@@ -49,10 +55,44 @@ export default function ProblemProperties() {
     }
   }, [selectedIdx]);
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.item(0);
+    if (f !== null) {
+      const data = await f?.text();
+      const param  = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        body: data
+      };
+
+      const api_path = "/api/problems/" + problem!.id + "/solutions/" + store.getState().user_name;
+      const res = await fetch(
+        location.origin + api_path,
+        param
+      );
+      console.log(res);  // TODO: アップロードが成功したかを知らせる
+    }
+  };
+
   return (
     <Paper className={classes.root}>
       <Typography variant="h6" className={classes.title}>
         Problem {selectedIdx + 1}
+          <input
+            accept="application/json"
+            className={classes.input}
+            id="contained-button-file"
+            type="file"
+            onChange={handleUpload}
+          ></input>
+            
+          <label htmlFor="contained-button-file">
+          <Button variant="contained" color="primary" component="span" className={classes.button}>
+            Upload
+          </Button>
+          </label>
       </Typography>
       <div className={classes.demo}>
         <List dense={true}>

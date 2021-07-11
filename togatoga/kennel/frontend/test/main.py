@@ -3,6 +3,7 @@ import json
 import os.path
 import glob
 import re
+import sys
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -54,25 +55,19 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(result_json).encode('UTF-8'))
 
     def do_POST(self):
-        service_names = []
-        files = glob.glob('./*.json')
-        for file in files:
-            basename = os.path.basename(file)
-            service_names.append(os.path.splitext(basename)[0])
-
-        for name in service_names:
-            if self.path == ('/' + name):
-                self.do_json_service(name)
-
-    def do_json_service(self, name):
-        f = open(name + ".json")
-        result_json = json.load(f)
-        f.close()
-
-        self.send_response(200)
-        self.send_header('Content-type','application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps(result_json).encode('UTF-8'))
+        if re.search('^/api/problems/(\d*)/solutions/(.*)', self.path) is not None:
+            self.log_error("submit")
+            m = re.search('^/api/problems/(\d*)/solutions/(.*)', self.path)
+            problemid = int(m.groups()[0])
+            user = m.groups()[1]
+            content_length = int(self.headers['content-length'])
+            s = self.rfile.read(content_length).decode('utf-8')
+            self.log_error(s)
+            self.log_error("=" * 20)
+            self.log_error(f"user: {user}")
+            self.log_error(f"problem: {problemid}")
+            self.send_response_only(200)
+            self.wfile.write("OK".encode('UTF-8'))
 
 PORT = 8080
 

@@ -56,6 +56,7 @@ export type ProblemStatus = {
 export type State = {
   problems: ProblemStatus[];
   selected: number;
+  user_name: string;
 };
 
 const initialProblem = (): Problem => {
@@ -70,6 +71,7 @@ const initialProblem = (): Problem => {
 const initialState: State = {
   problems: [],
   selected: 0,
+  user_name: "anonymous",
 };
 
 for (let i = 0; i < n_problem; i++) {
@@ -101,10 +103,14 @@ const slice = createSlice({
       ...state,
       selected: action.payload,
     }),
+    updateName: (state, action: PayloadAction<string>) => ({
+      ...state,
+      user_name: action.payload,
+    })
   },
 });
 
-export const { updateProblem, setSelected } = slice.actions;
+export const { updateProblem, setSelected, updateName } = slice.actions;
 
 export const store = configureStore({
   reducer: slice.reducer,
