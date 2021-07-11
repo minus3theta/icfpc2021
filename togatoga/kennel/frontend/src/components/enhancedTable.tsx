@@ -15,8 +15,19 @@ import Paper from '@material-ui/core/Paper';
 import IconButton from '@material-ui/core/IconButton';
 import Tooltip from '@material-ui/core/Tooltip';
 import FilterListIcon from '@material-ui/icons/FilterList';
-import { Radio } from '@material-ui/core';
-import { Solution } from '../app/store';
+import { Button, Radio } from '@material-ui/core';
+import { Solution, store } from '../app/store';
+
+function DownloadButton(props: {solution: Solution}) {
+  const sol = props.solution;
+  const problemId = store.getState().selected + 1;
+  const blob = new Blob([JSON.stringify(sol.pose)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+
+  return (
+    <Button href={url} download={"output_" + problemId + "_" + sol.dislike + "_" + sol.solutionId + ".json"}>download</Button>
+  )
+}
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -269,6 +280,7 @@ export default function EnhancedTable(prop: {rows: Solution[]}) {
                         {row.solutionId}
                       </TableCell>
                       <TableCell align="right">{row.dislike}</TableCell>
+                      <TableCell align="right"><DownloadButton solution={row}/></TableCell>
                     </TableRow>
                   );
                 })}
