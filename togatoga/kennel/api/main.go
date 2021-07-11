@@ -420,9 +420,9 @@ func getProblems(c echo.Context) error {
 	problem := new(Problem)
 	if err := db.QueryRow(context.Background(), sql, id).Scan(&problem); err != nil {
 		if err == pgx.ErrNoRows {
-			return c.JSON(http.StatusNotFound, err)
+			return c.JSON(http.StatusNotFound, ErrorResponse{err.Error()})
 		}
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
 	return c.JSON(http.StatusOK, problem)
 }
