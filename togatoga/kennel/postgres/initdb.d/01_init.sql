@@ -4,6 +4,7 @@ CREATE TABLE solutions (
     problem_id INT NOT NULL,
     user_name TEXT,
     solution JSON NOT NULL,
+    dislike INT NOT NULL,
     created_at TIMESTAMP with time zone NOT NULL
 );
 
@@ -15,6 +16,7 @@ CREATE TABLE problems (
 
 DROP TYPE IF EXISTS bonus_type;
 CREATE TYPE bonus_type AS ENUM('GLOBALIST', 'BREAK_A_LEG');
+
 DROP TABLE IF EXISTS bonuses;
 CREATE TABLE bonuses (
     id serial NOT NULL PRIMARY KEY,
@@ -27,16 +29,16 @@ CREATE TABLE bonuses (
 
 DROP TABLE IF EXISTS used_bonuses;
 CREATE TABLE used_bonuses (
-    id serial NOT NULL PRIMARY KEY,
     solution_id INT NOT NULL,
-    bonus_id INT NOT NULL
+    bonus_id INT NOT NULL,
+    PRIMARY KEY (solution_id, bonus_id)
 );
 
 DROP TABLE IF EXISTS got_bonuses;
 CREATE TABLE got_bonuses (
-    id serial NOT NULL PRIMARY KEY,
     solution_id INT NOT NULL,
-    bonus_id INT NOT NULL
+    bonus_id INT NOT NULL,
+    PRIMARY KEY (solution_id, bonus_id)
 );
 
 DROP TABLE IF EXISTS minimal_dislikes;
