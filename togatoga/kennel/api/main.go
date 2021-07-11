@@ -879,7 +879,7 @@ func optimalSubmission() ([]SolutionResponse, error) {
 	selectedSolutions := []SolutionResponse{}
 	for _, solutions := range solutionMap {
 		sort.Slice(solutions, func(i, j int) bool {
-			return solutions[i].Dislike > solutions[j].Dislike
+			return solutions[i].Dislike < solutions[j].Dislike
 		})
 		selected := solutions[0]
 		resp := SolutionResponse{
