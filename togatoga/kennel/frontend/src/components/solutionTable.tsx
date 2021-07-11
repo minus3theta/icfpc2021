@@ -3,6 +3,9 @@ import { Solution, updateProblem, useSelector } from '../app/store';
 import { useDispatch } from 'react-redux';
 
 import EnhancedTable from './enhancedTable';
+import ProblemCanvas from './problemCanvas';
+import { Button } from '@material-ui/core';
+import CachedIcon from '@material-ui/icons/Cached';
 
 export default function SolutionTable() {
   const { problem, selectedIdx } = useSelector((state) => {
@@ -37,12 +40,38 @@ export default function SolutionTable() {
     }
   }, [problem]);
 
+  const reload = () => {
+    dispatch(
+      updateProblem({
+        ...problem!,
+        need_fetch_solution: true,
+      })
+    );
+  };
+
   return (
     <React.Fragment>
+      <div>
+        <Button onClick={reload}>
+          <CachedIcon />
+        </Button>
+      </div>
       {problem?.solutions === null ? (
         <div></div>
       ) : (
-        <EnhancedTable rows={problem?.solutions!} />
+        <EnhancedTable
+          rows={problem?.solutions!}
+          minimal_dislike={problem?.minimal_dislike?.minimal_dislike!}
+          k={
+            1000 *
+            Math.log2(
+              (problem?.problem.figure.vertices.length! *
+                problem?.problem.figure.edges.length! *
+                problem?.problem.hole.length!) /
+                6
+            )
+          }
+        />
       )}
     </React.Fragment>
   );

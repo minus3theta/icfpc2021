@@ -43,6 +43,7 @@ export type Solution = {
     problem?: number;
     vertices: Pair[];
   };
+  gotBonuses: number[] | null;
   dislike: number;
   solutionId: string;
 };

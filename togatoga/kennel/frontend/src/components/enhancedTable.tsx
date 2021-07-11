@@ -221,8 +221,14 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export default function EnhancedTable(prop: { rows: Solution[] }) {
+export default function EnhancedTable(prop: {
+  rows: Solution[];
+  minimal_dislike: number;
+  k: number;
+}) {
   const rows = prop.rows;
+  const minimal_dislike = prop.minimal_dislike;
+  const k = prop.k;
   const classes = useStyles();
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<TableField>('dislike');
@@ -324,6 +330,18 @@ export default function EnhancedTable(prop: { rows: Solution[] }) {
                         {row.solutionId}
                       </TableCell>
                       <TableCell align="right">{row.dislike}</TableCell>
+                      <TableCell align="right">
+                        {Math.round(
+                          k *
+                            Math.sqrt((minimal_dislike + 1) / (row.dislike + 1))
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        {"get: " + row.gotBonuses?.toString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        {"use: " + row.pose.bonus?.toString()}
+                      </TableCell>
                       <TableCell align="right">
                         <DownloadButton solution={row} />
                       </TableCell>

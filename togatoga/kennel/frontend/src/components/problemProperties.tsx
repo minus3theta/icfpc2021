@@ -19,6 +19,7 @@ import {
   Theme,
   Typography,
 } from '@material-ui/core';
+import ScoreDislikeCanvas from './scoreDislikeCanvas';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -61,7 +62,7 @@ export default function ProblemProperties() {
         updateProblem({
           ...p,
           minimal_dislike: e,
-          need_fetch_minimal: false
+          need_fetch_minimal: false,
         })
       );
     });
@@ -146,7 +147,8 @@ export default function ProblemProperties() {
               <ListItem key="minimal_dislike">
                 <ListItemText
                   primary={
-                    'Minimal Dislike: ' + problem?.minimal_dislike?.minimal_dislike
+                    'Minimal Dislike: ' +
+                    problem?.minimal_dislike?.minimal_dislike
                   }
                 />
                 <TextField
@@ -173,7 +175,9 @@ export default function ProblemProperties() {
                 />
               </ListItem>
               <ListItem key="holes">
-                <ListItemText primary={'Holes: ' + problem?.problem.hole.length} />
+                <ListItemText
+                  primary={'Holes: ' + problem?.problem.hole.length}
+                />
               </ListItem>
               <ListItem key="edges">
                 <ListItemText
@@ -182,7 +186,25 @@ export default function ProblemProperties() {
               </ListItem>
               <ListItem key="vertices">
                 <ListItemText
-                  primary={'Vertices: ' + problem?.problem.figure.vertices.length}
+                  primary={
+                    'Vertices: ' + problem?.problem.figure.vertices.length
+                  }
+                />
+              </ListItem>
+              <ListItem key="maximalScore">
+                <ListItemText
+                  primary={
+                    'Maximal Score: ' +
+                    Math.round(
+                      1000 *
+                        Math.log2(
+                          (problem?.problem.figure.vertices.length! *
+                            problem?.problem.figure.edges.length! *
+                            problem?.problem.hole.length!) /
+                            6
+                        )
+                    )
+                  }
                 />
               </ListItem>
               {problem?.problem?.bonuses?.map((bonus, i) => {
@@ -199,3 +221,8 @@ export default function ProblemProperties() {
     </Paper>
   );
 }
+
+// not used because of performance issue
+// <Grid item xs={4} key="dislike_graph">
+//   <ScoreDislikeCanvas />
+// </Grid>

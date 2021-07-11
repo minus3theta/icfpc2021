@@ -5,18 +5,19 @@ import { updateBoard } from '../app/drawBoard';
 import { useDispatch } from 'react-redux';
 
 export default function ProblemCanvas() {
-  const { problem, problem_id, need_fetch_problem, selectedIdx } = useSelector((state) => {
-    return {
-      problem: state.problems[state.selected]?.problem,
-      problem_id: state.problems[state.selected]?.id,
-      need_fetch_problem: state.problems[state.selected]?.need_fetch_problem,
-      selectedIdx: state.selected,
-    };
-  });
+  const { problem, problem_id, need_fetch_problem, selectedIdx } = useSelector(
+    (state) => {
+      return {
+        problem: state.problems[state.selected]?.problem,
+        problem_id: state.problems[state.selected]?.id,
+        need_fetch_problem: state.problems[state.selected]?.need_fetch_problem,
+        selectedIdx: state.selected,
+      };
+    }
+  );
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const dispatch = useDispatch();
   useEffect(() => {
-    console.log("1")
     if (need_fetch_problem) {
       const f = async () => {
         const res = await fetch(
@@ -48,7 +49,6 @@ export default function ProblemCanvas() {
     }
   }, [problem]);
   useEffect(() => {
-    console.log("2")
     if (context !== null) {
       setTimeout(() => {
         updateBoard(problem!, context);
