@@ -48,6 +48,12 @@ type UserSolution struct {
 	Created_at time.Time `json:"created_at" db:"created_at"`
 }
 
+type ResolvedSolution struct {
+	Problem int      `json:"problem"`
+	Pose    Solution `json:"pose"`
+	Score   Score    `json:"score"`
+}
+
 type Figure struct {
 	Edges    []Vertex `json:"edges"`
 	Vertices []Vertex `json:"vertices"`
@@ -808,4 +814,32 @@ func getScore(problem Problem, solution Solution) (Score, error) {
 		bonuses = append(bonuses, key)
 	}
 	return Score{Dislike: dislikes(hole, vertices), Bonuses: bonuses}, nil
+}
+
+func calcFinalScore(problem Problem, dislike int, minimal_dislike int) int {
+	problem_size := len(problem.Figure.Vertices) * len(problem.Figure.Edges) * len(problem.Hole)
+	dislikes_ratio := math.Sqrt(float64(minimal_dislike+1) / float64(dislike+1))
+	return int(math.Ceil(1000 * math.Log2(float64(problem_size)/6.0) * dislikes_ratio))
+}
+
+func finalScoreOfSolution(solution ResolvedSolution) (int, error) {
+	sql := `SELECT dislike FROM minimal_dislikes WHERE problem_id = $1
+	ORDER BY created_at DESC LIMIT 1`
+
+	minimal_dislike := 0
+	if err := db.QueryRow(context.Background(), sql, solution.Problem).Scan(&minimal_dislike); err != nil {
+		if err == pgx.ErrNoRows {
+			minimal_dislike = solution.Score.Dislike
+		} else {
+			return 0, err
+		}
+	}
+
+	problem, err := getProblemById(solution.Problem)
+	if err != nil {
+		return 0, err
+	}
+	score := calcFinalScore(*problem, solution.Score.Dislike, minimal_dislike)
+
+	return score, nil
 }
