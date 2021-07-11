@@ -691,7 +691,7 @@ export class MainScene extends Phaser.Scene {
         }
       }
       holeEdge.graphics.clear();
-      if (intersect) {
+      if (intersect && !physicsMode) {
         holeEdge.graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xDD9999 } })
       } else {
         holeEdge.graphics = this.add.graphics({ lineStyle: { width: 2, color: 0x000000 } })
