@@ -48,6 +48,12 @@ type UserSolution struct {
 	Created_at time.Time `json:"created_at" db:"created_at"`
 }
 
+type ResolvedSolution struct {
+	Problem int      `json:"problem"`
+	Pose    Solution `json:"pose"`
+	Score   Score    `json:"score"`
+}
+
 type Figure struct {
 	Edges    []Vertex `json:"edges"`
 	Vertices []Vertex `json:"vertices"`
@@ -87,6 +93,15 @@ type GotBonus struct {
 type Score struct {
 	Dislike int   `json:"dislike"`
 	Bonuses []int `json:"bonuses"` // index of bonuses array in problem
+}
+
+type SolutionResponse struct {
+	Pose       Solution `json:"pose"`
+	Dislike    int      `json:"dislike"`
+	GotBonuses []int    `json:"gotBonuses"`
+	SolutionId int      `json:"solutionId"`
+	ProblemId  int      `json:"problemId"`
+	UserName   string   `json:"userName"`
 }
 
 type ErrorResponse struct {
@@ -129,6 +144,7 @@ func main() {
 	e.POST("/api/minimal/:id", postMinimal)
 	e.GET("/api/minimal/:id", getMinimal)
 	e.GET("/api/minimal", getMinimalAll)
+	e.GET("/api/submit", getOptimalSubmission)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -225,13 +241,12 @@ func getAvailableBonuses(problemId int) ([]Bonus, error) {
 	return bonuses, nil
 }
 
-// Handler
-func getSolutions(c echo.Context) error {
+func solutions() ([]UserSolution, error) {
 	sql := "SELECT id, problem_id, user_name, solution, created_at FROM solutions"
 
 	rows, err := db.Query(context.Background(), sql)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return nil, err
 	}
 	uss := []UserSolution{}
 	for rows.Next() {
@@ -239,13 +254,24 @@ func getSolutions(c echo.Context) error {
 		err = rows.Scan(&us.Id, &us.Problem_id, &us.User_name, &us.Solution, &us.Created_at)
 
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, err)
+			return nil, err
 		}
 		uss = append(uss, us)
 	}
 
+	return uss, nil
+}
+
+// Handler
+func getSolutions(c echo.Context) error {
+	uss, err := solutions()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+
 	return c.JSON(http.StatusOK, uss)
 }
+
 func postSolutions(c echo.Context) error {
 	solution := new(Solution)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -482,14 +508,6 @@ func getSolution(c echo.Context) error {
 		FROM solutions
 		JOIN problems ON problems.id = solutions.problem_id
 		WHERE solutions.id = $1`
-	type Response struct {
-		Pose       Solution `json:"pose"`
-		Dislike    int      `json:"dislike"`
-		GotBonuses []int    `json:"gotBonuses"`
-		SolutionId int      `json:"solutionId"`
-		ProblemId  int      `json:"problemId"`
-		UserName   string   `json:"userName"`
-	}
 	type SQLResult struct {
 		UserSolution
 		Problem Problem `db:"problem"`
@@ -500,7 +518,7 @@ func getSolution(c echo.Context) error {
 		c.Echo().Logger.Error(err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
 	}
-	response := Response{
+	response := SolutionResponse{
 		Pose:       result.Solution,
 		Dislike:    result.Dislike,
 		SolutionId: result.Id,
@@ -808,4 +826,82 @@ func getScore(problem Problem, solution Solution) (Score, error) {
 		bonuses = append(bonuses, key)
 	}
 	return Score{Dislike: dislikes(hole, vertices), Bonuses: bonuses}, nil
+}
+
+func calcFinalScore(problem Problem, dislike int, minimal_dislike int) int {
+	problem_size := len(problem.Figure.Vertices) * len(problem.Figure.Edges) * len(problem.Hole)
+	dislikes_ratio := math.Sqrt(float64(minimal_dislike+1) / float64(dislike+1))
+	return int(math.Ceil(1000 * math.Log2(float64(problem_size)/6.0) * dislikes_ratio))
+}
+
+func finalScoreOfSolution(solution ResolvedSolution) (int, error) {
+	sql := `SELECT dislike FROM minimal_dislikes WHERE problem_id = $1
+	ORDER BY created_at DESC LIMIT 1`
+
+	minimal_dislike := 0
+	if err := db.QueryRow(context.Background(), sql, solution.Problem).Scan(&minimal_dislike); err != nil {
+		if err == pgx.ErrNoRows {
+			minimal_dislike = solution.Score.Dislike
+		} else {
+			return 0, err
+		}
+	}
+
+	problem, err := getProblemById(solution.Problem)
+	if err != nil {
+		return 0, err
+	}
+	score := calcFinalScore(*problem, solution.Score.Dislike, minimal_dislike)
+
+	return score, nil
+}
+
+// Greedy, choosing solutions which don't use bonuses
+func optimalSubmission() ([]SolutionResponse, error) {
+	allSolutions, err := solutions()
+	if err != nil {
+		return nil, err
+	}
+
+	solutionMap := make(map[int][]UserSolution)
+	for _, solution := range allSolutions {
+		if len(solution.Solution.Bonuses) > 0 {
+			continue
+		}
+
+		s := solutionMap[solution.Problem_id]
+		if s == nil {
+			s = []UserSolution{}
+		}
+		solutionMap[solution.Problem_id] = append(s, solution)
+	}
+
+	selectedSolutions := []SolutionResponse{}
+	for _, solutions := range solutionMap {
+		sort.Slice(solutions, func(i, j int) bool {
+			return solutions[i].Dislike > solutions[j].Dislike
+		})
+		selected := solutions[0]
+		resp := SolutionResponse{
+			Pose:       selected.Solution,
+			Dislike:    selected.Dislike,
+			SolutionId: selected.Id,
+			ProblemId:  selected.Problem_id,
+			UserName:   selected.User_name,
+		}
+		// TODO: Set resp.gotBonuses
+		resp.GotBonuses = []int{}
+		selectedSolutions = append(selectedSolutions, resp)
+	}
+
+	return selectedSolutions, nil
+}
+
+func getOptimalSubmission(c echo.Context) error {
+	submission, err := optimalSubmission()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, submission)
 }
