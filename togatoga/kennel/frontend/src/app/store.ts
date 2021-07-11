@@ -31,7 +31,7 @@ export type Solution = {
   pose: {
     bonus?: string;
     edge?: Pair;
-    problem: number;
+    problem?: number;
     vertices: Pair[];
   };
   dislike: number;
