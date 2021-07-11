@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bits/types/FILE.h>
 #include <bitset>
 #include <cassert>
 #include <cfloat>
@@ -11,17 +12,20 @@
 #include <ctime>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <iomanip>
 #include <iostream>
 #include <list>
 #include <map>
 #include <memory>
 #include <numeric>
+#include <ostream>
 #include <queue>
 #include <set>
 #include <sstream>
 #include <stack>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -54,18 +58,40 @@ const ll MOD = 1000000007;
 const int dx[] = {1, 0, -1, 0}, dy[] = {0, -1, 0, 1};
 
 const ll THRESHOLD = 1000000;
+static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2) {
+  ll x1, y1, x2, y2, x3, y3, x4, y4;
+  tie(x1, y1) = e1.first;
+  tie(x2, y2) = e1.second;
+  tie(x3, y3) = e2.first;
+  tie(x4, y4) = e2.second;
+  const ll ta = (x3 - x4) * (y1 - y3) + (y3 - y4) * (x3 - x1);
+  const ll tb = (x3 - x4) * (y2 - y3) + (y3 - y4) * (x3 - x2);
+  const ll tc = (x1 - x2) * (y3 - y1) + (y1 - y2) * (x1 - x3);
+  const ll td = (x1 - x2) * (y4 - y1) + (y1 - y2) * (x1 - x4);
+  return ta * tb < 0 && tc * td < 0;
+}
 
 class Solver {
 public:
   Solver() {}
 
   void preprocess() {
-
-    
+    int max_x = 0;
+    int max_y = 0;
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      point_to_index[hole_internal_points[i]] = i;
+      int x, y;
+      tie(x, y) = hole_internal_points[i];
+      max_x = max(max_x, x);
+      max_y = max(max_y, y);
     }
-    assert(point_to_index.size() == hole_internal_points.size());
+    point_to_index.resize(max_x + 1, vector<int>(max_y + 1, -1));
+    for (int i = 0; i < hole_internal_points.size(); i++) {
+      int x, y;
+      tie(x, y) = hole_internal_points[i];
+      point_to_index[x][y] = i;
+    }
+
+    assert(point_num() == hole_internal_points.size());
     neighbor_figs.resize(figure_num);
     for (const auto &edge : edges) {
       int a = edge.first;
@@ -74,44 +100,47 @@ public:
       neighbor_figs[a].push_back(b);
       neighbor_figs[b].push_back(a);
     }
-
+    intersected_points.resize(hole_internal_points.size(),
+                              vector<char>(hole_internal_points.size(), 0));
+    vector<future<vector<tuple<int, int, bool>>>> futures;
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      pll xy1 = hole_internal_points[i];
-      for (int j = i + 1; j < hole_internal_points.size(); j++) {
-        pll xy2 = hole_internal_points[j];
-        bool ok = true;
-        for (int k = 0; k < hole_points.size(); k++) {
-          int l = (k + 1) % hole_points.size();
-          pll xy3 = hole_points[k];
-          pll xy4 = hole_points[l];
-          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
-            ok = false;
-            break;
+      futures.push_back(std::async([&, i] {
+        pll xy1 = hole_internal_points[i];
+        vector<tuple<int, int, bool>> results;
+        for (int j = i + 1; j < hole_internal_points.size(); j++) {
+          pll xy2 = hole_internal_points[j];
+          bool intersect = false;
+          for (int k = 0; k < hole_points.size(); k++) {
+            int l = (k + 1) % hole_points.size();
+            pll xy3 = hole_points[k];
+            pll xy4 = hole_points[l];
+            if (is_intersect(mp(xy1, xy2), mp(xy3, xy4))) {
+              intersect = true;
+              break;
+            }
           }
+          results.push_back(mt(i, j, intersect));
         }
-        // int x1 = xy1.first;
-        // int y1 = xy1.second;
-        // int x2 = xy2.first;
-        // int y2 = xy2.second;
-        // if (x1 == 1 && y1 == 12 && x2 == 40 && y2 == 0) {
-        //   cout << x1 << " " << y1 << " " << x2 << " " << y2 << endl;
-        //   cout << "ok" << ok << endl;
-        //   assert(false);
-
-        // }
-        if (!ok) {
-          intersected_points.insert(mp(xy1, xy2));
-          intersected_points.insert(mp(xy2, xy1));
-        }
+        return results;
+      }));
+    }
+    for (auto &future : futures) {
+      for (const auto &result : future.get()) {
+        int i, j, k;
+        tie(i, j, k) = result;
+        intersected_points[i][j] = k;
+        intersected_points[j][i] = k;
       }
     }
     cerr << "Done!! " << __func__ << endl;
   }
+
+  int point_num() { return hole_internal_points.size(); }
   int sat_index_from_fig_and_point(int fig_idx, pii xy) {
-    //cout << fig_idx << " " << xy.first << " " << xy.second << endl;
-    assert(point_to_index.count(xy) > 0);
-    int idx = point_to_index[xy];
-    int sat_index = fig_idx * point_to_index.size() + idx + 1;
+    // cout << fig_idx << " " << xy.first << " " << xy.second << endl;
+    assert(point_to_index[xy.first][xy.second] >= 0);
+    int idx = point_to_index[xy.first][xy.second];
+    int sat_index = fig_idx * point_num() + idx + 1;
     assert(sat_index != 0);
     return sat_index;
   }
@@ -122,36 +151,31 @@ public:
     return d1 + d2;
   }
 
-  bool is_intersect(pair<pll, pll> e1, pair<pll, pll> e2) {
-    ll x1, y1, x2, y2, x3, y3, x4, y4;
-    tie(x1, y1) = e1.first;
-    tie(x2, y2) = e1.second;
-    tie(x3, y3) = e2.first;
-    tie(x4, y4) = e2.second;
-    const ll ta = (x3 - x4) * (y1 - y3) + (y3 - y4) * (x3 - x1);
-    const ll tb = (x3 - x4) * (y2 - y3) + (y3 - y4) * (x3 - x2);
-    const ll tc = (x1 - x2) * (y3 - y1) + (y1 - y2) * (x1 - x3);
-    const ll td = (x1 - x2) * (y4 - y1) + (y1 - y2) * (x1 - x4);
-    return ta * tb < 0 && tc * td < 0;
-  }
-  void input_internal_points() {
+  void input_internal_points(const string &file_name) {
+    ifstream ifs(file_name);
     int internal_point_num;
-    cin >> internal_point_num;
+    ifs >> internal_point_num;
+
     hole_internal_points.resize(internal_point_num);
     for (auto &point : hole_internal_points) {
-      cin >> point.first >> point.second;
+      ifs >> point.first >> point.second;
     }
+    ifs.close();
     cerr << "Done!! " << __func__ << endl;
   }
-  
-  void solve() {
-    input();
+
+  void solve(const std::string &input_file_name,
+             const std::string &internal_file_name,
+             const std::string &output_file_name) {
+    cout << input_file_name << " " << internal_file_name << " "
+         << output_file_name << endl;
+    input(input_file_name);
     // 内点全列挙
-    input_internal_points();
+    input_internal_points(internal_file_name);
     preprocess();
-  
+
     // 制約を生成
-    //cerr << figure_num << " " << hole_internal_points.size() << endl;
+    // cerr << figure_num << " " << hole_internal_points.size() << endl;
     for (int i = 0; i < figure_num; i++) {
       // figの一つの頂点が必ずどれか一つinternal_pointsに存在
       {
@@ -172,13 +196,11 @@ public:
         for (int k = j + 1; k < hole_internal_points.size(); k++) {
           pii xy2 = hole_internal_points[k];
           int sat_index2 = sat_index_from_fig_and_point(i, xy2);
-          vector<int> bin_clause;
-          bin_clause.push_back(-sat_index1);
-          bin_clause.push_back(-sat_index2);
-          sat_clauses.push_back(bin_clause);
+          bin_clauses.push_back(mp(-sat_index1, -sat_index2));
         }
       }
-      cerr << "Done!! " << i + 1 << "/" << figure_num << " " << sat_clauses.size() << endl;
+      cerr << "Done!! " << i + 1 << "/" << figure_num << " "
+           << sat_clauses.size() << endl;
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
@@ -186,7 +208,7 @@ public:
       for (int j = i; j < hole_internal_points.size(); j++) {
         pii xy2 = hole_internal_points[j];
         bool ok = true;
-        if (intersected_points.count(mp(xy1, xy2))) {
+        if (intersected_points[i][j]) {
           ok = false;
         }
         ll new_dist = calc_dist(xy1, xy2);
@@ -194,13 +216,11 @@ public:
           pii xy3 = figure_points[k];
           for (int l : neighbor_figs[k]) {
             pii xy4 = figure_points[l];
+
             if (!ok) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
               int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              vector<int> bin_clause;
-              bin_clause.push_back(-sat_index1);
-              bin_clause.push_back(-sat_index2);
-              sat_clauses.push_back(bin_clause);
+              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
               continue;
             }
             ll previous_dist = calc_dist(xy3, xy4);
@@ -211,49 +231,56 @@ public:
             if (left_value > right_value) {
               int sat_index1 = sat_index_from_fig_and_point(k, xy1);
               int sat_index2 = sat_index_from_fig_and_point(l, xy2);
-              vector<int> bin_clause;
-              bin_clause.push_back(-sat_index1);
-              bin_clause.push_back(-sat_index2);
-              sat_clauses.push_back(bin_clause);
+              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
             }
           }
         }
       }
-      cerr << "Hole Internal Done!! " << i + 1 << "/" << hole_internal_points.size() << endl;
+      cerr << "Hole Internal Done!! " << i + 1 << "/"
+           << hole_internal_points.size() << endl;
     }
-    //cerr << sat_clauses.size() << endl;
-    output_cnf();
+    // cerr << sat_clauses.size() << endl;
+    output_cnf(output_file_name);
   }
 
-  void output_cnf() {
-      cout << "p cnf " << figure_num * point_to_index.size() + 1 << " " << sat_clauses.size() << endl;
-      for (const auto &clause: sat_clauses) {
-          for (int v : clause) {
-              cout << v << " ";
-          }
-          cout << "0" << endl;
+  void output_cnf(std::string output_file_name) {
+    ofstream os(output_file_name, ios::out | ios::binary);
+    int clause_num = sat_clauses.size() + bin_clauses.size();
+    os << "p cnf " << figure_num * point_num() + 1 << " " << clause_num << "\n";
+
+    for (const auto &bin : bin_clauses) {
+      os << bin.first << " " << bin.second << " 0\n";
+    }
+    for (const auto &clause : sat_clauses) {
+      for (int v : clause) {
+        os << v << " ";
       }
+      os << "0\n";
+    }
   }
 
-  void input() {
-    cin >> hole_num;
+  void input(const std::string &file_name) {
+    ifstream ifs(file_name, std::ios::in);
+    ifs >> hole_num;
     hole_points.resize(hole_num);
+
     for (auto &point : hole_points) {
-      cin >> point.first >> point.second;
+      ifs >> point.first >> point.second;
     }
 
-    cin >> edge_num;
+    ifs >> edge_num;
     edges.resize(edge_num);
     for (auto &edge : edges) {
-      cin >> edge.first >> edge.second;
+      ifs >> edge.first >> edge.second;
     }
-    cin >> figure_num;
+    ifs >> figure_num;
     figure_points.resize(figure_num);
     for (auto &point : figure_points) {
-      cin >> point.first >> point.second;
+      ifs >> point.first >> point.second;
     }
-    cin >> epsilon;
+    ifs >> epsilon;
     cerr << "Done!! " << __func__ << endl;
+    ifs.close();
   }
   // inputs
   int hole_num;
@@ -266,16 +293,23 @@ public:
   // variables
   vector<pii> hole_internal_points;
   vector<vector<int>> neighbor_figs;
-  map<pii, int> point_to_index;
+  vector<vector<int>> point_to_index;
   vector<vector<int>> sat_clauses;
-  set<pair<pll, pll>> intersected_points;
+  vector<pii> bin_clauses;
+  vector<vector<char>> intersected_points;
 };
-
+void print_usage() {
+  std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf>"
+            << std::endl;
+}
 int main(int argc, char *argv[]) {
-  cin.tie(0);
-  ios::sync_with_stdio(false);
+
   Solver s = Solver();
-  s.solve();
-  
+  if (argc != 4) {
+    print_usage();
+    exit(1);
+  }
+  s.solve(argv[1], argv[2], argv[3]);
+
   return 0;
 }
