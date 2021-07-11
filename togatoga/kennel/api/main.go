@@ -752,6 +752,7 @@ func getScore(problem Problem, solution Solution) (Score, error) {
 	if cntOutOfHole > 1 {
 		return Score{Dislike: -1}, errors.New("The number of vertices of out the hole exceeds the limit 1")
 	}
+	distanceConstaintNegativeCount := 0
 	for _, e := range problem.Figure.Edges {
 		i := e[0]
 		j := e[1]
@@ -787,7 +788,11 @@ func getScore(problem Problem, solution Solution) (Score, error) {
 			}
 		} else {
 			if checkLengthConstraint(problem, d, originalDist, bonus.Bonus) {
-				return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v1.x, v1.y, v2.x, v2.y))
+				if bonus.Bonus == BonusKindSuperflex && distanceConstaintNegativeCount == 0 {
+					distanceConstaintNegativeCount = 1
+				} else {
+					return Score{Dislike: -1}, errors.New(fmt.Sprintf("the length of edge between (%v, %v) and (%v, %v) exceeds the constraint", v1.x, v1.y, v2.x, v2.y))
+				}
 			}
 			if outOfHoleVertexIndex != nil && (i == *outOfHoleVertexIndex || j == *outOfHoleVertexIndex) {
 				continue
