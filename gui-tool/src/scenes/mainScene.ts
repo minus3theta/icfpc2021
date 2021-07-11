@@ -301,6 +301,7 @@ export class MainScene extends Phaser.Scene {
   private selecting = false;
   private areaSelected = false;
   private processing = false;
+  private physicsProcessing = false;
 
   private dragBasePoint;
   private selectBasePoint;
@@ -473,12 +474,16 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    if (physicsMode) {
+    if (physicsMode && !this.physicsProcessing) {
+      this.physicsProcessing = true;
       this.attenuateVelocity();
       this.applyTension();
       this.moveByVelocity();
       this.putVerticesIntoHole();
       this.drawFigure();
+      this.drawHole();
+      this.displayDislikes();
+      this.physicsProcessing = false;
     }
   }
 
@@ -994,6 +999,8 @@ export class MainScene extends Phaser.Scene {
         this.moveTo(v, Math.round(v.x), Math.round(v.y));
       }
       this.drawFigure();
+      this.drawHole();
+      this.displayDislikes();
     }
     this.manageSaveButton();
   }
@@ -1213,9 +1220,9 @@ export class MainScene extends Phaser.Scene {
     const xText = document.getElementById('x-text');
     const yText = document.getElementById('y-text');
     // @ts-ignore
-    xText.innerHTML = String(x - geta);
+    xText.innerHTML = String(Math.floor((x - geta) * 1000) / 1000);
     // @ts-ignore
-    yText.innerHTML = String(y - geta);
+    yText.innerHTML = String(Math.floor((y - geta) * 1000) / 1000);
   }
 
   cleanAbsoluteTextWrapper(): void {
