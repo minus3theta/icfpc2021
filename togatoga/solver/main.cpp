@@ -76,7 +76,7 @@ static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2) {
 
 class Solver {
 public:
-  Solver() : new_varialbe(0) {}
+  Solver() : new_variable(0) {}
 
   void preprocess() {
     int max_x = 0;
@@ -168,7 +168,7 @@ public:
   }
   void add_edge_constraints() {
     // 辺の制約を作成
-    assignments.resize(varialbe_num(), LIT_UNKNOWN);
+    assignments.resize(variable_num(), LIT_UNKNOWN);
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j = 0; j < figure_points.size(); j++) {
         for (int k : neighbor_figs[j]) {
@@ -206,63 +206,99 @@ public:
     }
   }
 
-  void add_node_constraints() {
+  int bucket_cnt() { return sqrt(hole_internal_points.size()) + 1; }
+  int get_bucket_id(pll xy) {
+    assert(point_to_index[xy.first][xy.second] != -1);
+    assert(bucket_cnt() >= 1);
+    return point_to_index[xy.first][xy.second] / bucket_cnt();
+  }
+  void construct_fig_and_bucket() {
+    bucket_to_points.resize(bucket_cnt());
     for (int i = 0; i < figure_num; i++) {
-      // figの一つの頂点が必ずどれか一つinternal_pointsに存在
+      for (int j = 0; j < bucket_cnt(); j++) {
+        new_variable++;
+        fig_and_bucket_to_sat_index[mp(i, j)] = variable_num();
+      }
+    }
+    for (int i = 0; i < hole_internal_points.size(); i++) {
+      int bucket_id = get_bucket_id(hole_internal_points[i]);
+      bucket_to_points[bucket_id].push_back(hole_internal_points[i]);
+    }
+  }
+  int get_sat_index_from_fig_and_bucket(int fig, int bucket) {
+    assert(fig_and_bucket_to_sat_index.count(mp(fig, bucket)) > 0);
+    return fig_and_bucket_to_sat_index[mp(fig, bucket)];
+  }
+  void add_node_constraints() {
+    //前処理
+    construct_fig_and_bucket();
+
+    // 頂点 + バケットに対して制約の追加
+    assert(figure_num == figure_points.size());
+    for (int i = 0; i < figure_points.size(); i++) {
+      // 頂点はどれか一つのバケットに属する
       {
         vector<int> clause;
-        bool already_satisfied = false;
-        // (x_i_0_0 or x_i_0_1 or )
-        for (int j = 0; j < hole_internal_points.size(); j++) {
-          if (assignments[sat_index_from_fig_and_point(
-                  i, hole_internal_points[j])] != LIT_UNKNOWN) {
-            if (assignments[sat_index_from_fig_and_point(
-                    i, hole_internal_points[j])] == LIT_TRUE) {
-              already_satisfied = true;
-              break;
-            } else {
-              continue;
-            }
-          }
-          clause.push_back(
-              sat_index_from_fig_and_point(i, hole_internal_points[j]));
+        for (int j = 0; j < bucket_cnt(); j++) {
+          // if (bucket_to_points[j].empty()) {
+          //   cerr << j << " " << bucket_cnt() << " " <<
+          //   hole_internal_points.size() << endl;
+          // }
+          // assert(!bucket_to_points[j].empty());
+          clause.push_back(get_sat_index_from_fig_and_bucket(i, j));
         }
-        if (!already_satisfied) {
-          if (clause.size() == 1) {
-            assignments[clause[0]] = LIT_TRUE;
-          }
-          sat_clauses.push_back(clause);
+        sat_clauses.push_back(clause);
+      }
+
+      // 頂点は唯一つのバケットに属する
+      for (int j = 0; j < bucket_cnt(); j++) {
+        int x = get_sat_index_from_fig_and_bucket(i, j);
+        for (int k = j + 1; k < bucket_cnt(); k++) {
+          int y = get_sat_index_from_fig_and_bucket(i, k);
+          assert(x != y);
+          bin_clauses.push_back(mp(-x, -y));
         }
       }
 
-      // figは唯一つのinternal_pointsに属する
-      /* !(x_i_0_0 and x_i_0_1) -> (!x_i_0_0 or x_i_0_1) */
-      for (int j = 0; j < hole_internal_points.size(); j++) {
-        pii xy1 = hole_internal_points[j];
-        int sat_index1 = sat_index_from_fig_and_point(i, xy1);
-        // satisfied -x1 = False
-        if (assignments[sat_index1] == LIT_FALSE) {
+      // 内点とバケットについての制約を追加
+      for (int j = 0; j < bucket_cnt(); j++) {
+        if (bucket_to_points[j].empty()) {
           continue;
         }
-        for (int k = j + 1; k < hole_internal_points.size(); k++) {
-          pii xy2 = hole_internal_points[k];
-          int sat_index2 = sat_index_from_fig_and_point(i, xy2);
-          // satisfied -x2 = False
-          if (assignments[sat_index2] == LIT_FALSE) {
-            continue;
+        int bucket_sat_index = get_sat_index_from_fig_and_bucket(i, j);
+        vector<int> clause;
+
+        // figは同じバケット内に属する点はただ一つ
+        for (int k = 0; k < bucket_to_points[j].size(); k++) {
+          int x = sat_index_from_fig_and_point(i, bucket_to_points[j][k]);
+          for (int k2 = k + 1; k2 < bucket_to_points[j].size(); k2++) {
+            int y = sat_index_from_fig_and_point(i, bucket_to_points[j][k2]);
+            bin_clauses.push_back(mp(-x, -y));
           }
-          bin_clauses.push_back(mp(-sat_index1, -sat_index2));
         }
+
+        // スーパー頂点はバケット内に頂点が存在する時だけ真
+        for (const auto &point : bucket_to_points[j]) {
+          clause.push_back(sat_index_from_fig_and_point(i, point));
+          bin_clauses.push_back(
+              mp(-sat_index_from_fig_and_point(i, point), bucket_sat_index));
+        }
+        assert(!clause.empty());
+        if (!clause.empty()) {
+          clause.push_back(-bucket_sat_index);
+          sat_clauses.push_back(clause);
+        }
+        // 頂点が対応する内点はただ一つ?
       }
-      cerr << "Done!! " << i + 1 << "/" << figure_num << " "
-           << sat_clauses.size() << endl;
+      cerr << "Node constraints: " << (i + 1) << "/" << figure_points.size()
+           << endl;
     }
   }
   void add_segment_conflict_constraints() {
     // 超頂点を作成
     vector<int> index_to_super_node;
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      new_varialbe++;
+      new_variable++;
       vector<int> clause;
       for (int j = 0; j < figure_points.size(); j++) {
         int sat_index1 =
@@ -270,13 +306,13 @@ public:
         if (assignments[sat_index1] == LIT_FALSE) {
           continue;
         }
-        int sat_index2 = varialbe_num();
+        int sat_index2 = variable_num();
         bin_clauses.push_back(mp(-sat_index1, sat_index2));
         clause.push_back(sat_index1);
       }
-      clause.push_back(-varialbe_num());
+      clause.push_back(-variable_num());
       sat_clauses.push_back(clause);
-      index_to_super_node.push_back(varialbe_num());
+      index_to_super_node.push_back(variable_num());
     }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
@@ -308,7 +344,6 @@ public:
     input(input_file_name);
     // 内点全列挙
     input_internal_points(internal_file_name);
-
     preprocess();
 
     add_edge_constraints();
@@ -345,7 +380,8 @@ public:
     input(input_file_name);
     // 内点全列挙
     input_internal_points(internal_file_name);
-    reduce_internal_points(internal_file_name);
+    // reduce_internal_points(internal_file_name);
+
     preprocess();
 
     add_edge_constraints();
@@ -355,18 +391,19 @@ public:
     output_cnf(output_file_name);
   }
 
-  int varialbe_num() {
-    return figure_num * hole_internal_points.size() + new_varialbe + 1;
+  int variable_num() {
+    return figure_num * hole_internal_points.size() + new_variable + 1;
   }
   void output_cnf(std::string output_file_name) {
     ofstream os(output_file_name, ios::out | ios::binary);
     int clause_num = sat_clauses.size() + bin_clauses.size();
-    os << "p cnf " << varialbe_num() << " " << clause_num << "\n";
+    os << "p cnf " << variable_num() << " " << clause_num << "\n";
 
     for (const auto &bin : bin_clauses) {
       os << bin.first << " " << bin.second << " 0\n";
     }
     for (const auto &clause : sat_clauses) {
+      assert(!clause.empty());
       for (int v : clause) {
         os << v << " ";
       }
@@ -413,7 +450,9 @@ public:
   vector<pii> bin_clauses;
   vector<vector<char>> intersected_points;
   vector<int> assignments;
-  int new_varialbe;
+  int new_variable;
+  map<pair<int, int>, int> fig_and_bucket_to_sat_index;
+  vector<vector<pii>> bucket_to_points;
 };
 void print_usage() {
   std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf>"
