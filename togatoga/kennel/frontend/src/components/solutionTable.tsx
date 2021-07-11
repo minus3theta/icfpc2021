@@ -29,7 +29,7 @@ export default function SolutionTable() {
       };
       f();
     }
-  }, [selectedIdx]);
+  }, [selectedIdx, problem]);
 
   return (
     <React.Fragment>
