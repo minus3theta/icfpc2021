@@ -8,9 +8,14 @@ let globalist = false;
 let wallhack = false;
 let physicsMode = false;
 
+const velocityAttenuateRate = 0.5;
+const springRate = 0.3;
+
 export class Vertex {
   public x;
   public y;
+  public vx = 0;
+  public vy = 0;
   public prevX;
   public prevY;
   public edges;
@@ -468,34 +473,76 @@ export class MainScene extends Phaser.Scene {
 
   update() {
     if (physicsMode) {
-      for (const v of this.vertices) {
-        if (v.inHole) continue;
-        const pt = new Phaser.Geom.Point(v.x * displayRate, v.y * displayRate);
-        let nearestDist = 10000000;
-        let nearestPoint: Phaser.Geom.Point | null = null;
-        for (const e of this.holeEdges) {
-          const nearPt = Phaser.Geom.Line.GetNearestPoint(e.line, pt);
-          const dist = Phaser.Math.Distance.BetweenPoints(pt, nearPt);
-          if (Phaser.Geom.Intersects.PointToLine(nearPt, e.line) && dist < nearestDist) {
-            nearestDist = dist;
-            nearestPoint = nearPt;
-          }
-          const dist1 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointA());
-          if (dist1 < nearestDist) {
-            nearestDist = dist1;
-            nearestPoint = e.line.getPointA();
-          }
-          const dist2 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointB());
-          if (dist2 < nearestDist) {
-            nearestDist = dist2;
-            nearestPoint = e.line.getPointB();
-          }
+      this.attenuateVelocity();
+      this.applyTension();
+      this.moveByVelocity();
+      this.putVerticesIntoHole();
+      this.drawFigure();
+    }
+  }
+
+  putVerticesIntoHole(): void {
+    for (const v of this.vertices) {
+      if (v.inHole) continue;
+
+      const pt = new Phaser.Geom.Point(v.x * displayRate, v.y * displayRate);
+      let nearestDist = 10000000;
+      let nearestPoint: Phaser.Geom.Point | null = null;
+      for (const e of this.holeEdges) {
+        const nearPt = Phaser.Geom.Line.GetNearestPoint(e.line, pt);
+        const dist = Phaser.Math.Distance.BetweenPoints(pt, nearPt);
+        if (Phaser.Geom.Intersects.PointToLine(nearPt, e.line) && dist < nearestDist) {
+          nearestDist = dist;
+          nearestPoint = nearPt;
         }
-        if (nearestPoint) {
-          this.moveTo(v, nearestPoint.x / displayRate, nearestPoint.y / displayRate);
+        const dist1 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointA());
+        if (dist1 < nearestDist) {
+          nearestDist = dist1;
+          nearestPoint = e.line.getPointA();
+        }
+        const dist2 = Phaser.Math.Distance.BetweenPoints(pt, e.line.getPointB());
+        if (dist2 < nearestDist) {
+          nearestDist = dist2;
+          nearestPoint = e.line.getPointB();
         }
       }
-      this.drawFigure();
+      if (nearestPoint) {
+        this.moveTo(v, nearestPoint.x / displayRate, nearestPoint.y / displayRate);
+      }
+    }
+  }
+
+  attenuateVelocity(): void {
+    for (const v of this.vertices) {
+      v.vx *= velocityAttenuateRate;
+      v.vy *= velocityAttenuateRate;
+    }
+  }
+
+  applyTension(): void {
+    for (const e of this.edges) {
+      const vec = new Phaser.Math.Vector2(e.v[0].x - e.v[1].x, e.v[0].y - e.v[1].y).normalize();
+      const len = e.calcLength();
+      if (len < e.baseLength) {
+        const overRate = 1 - len / e.baseLength;
+        e.v[0].vx += overRate * vec.x * springRate;
+        e.v[0].vy += overRate * vec.y * springRate;
+        e.v[1].vx -= overRate * vec.x * springRate;
+        e.v[1].vy -= overRate * vec.y * springRate;
+      } else {
+        const overRate = len / e.baseLength - 1;
+        e.v[0].vx -= overRate * vec.x * springRate;
+        e.v[0].vy -= overRate * vec.y * springRate;
+        e.v[1].vx += overRate * vec.x * springRate;
+        e.v[1].vy += overRate * vec.y * springRate;
+      }
+    }
+  }
+
+  moveByVelocity(): void {
+    for (const v of this.vertices) {
+      if (v.selected) continue;
+      this.moveTo(v, v.x + v.vx, v.y + v.vy);
     }
   }
 
@@ -888,7 +935,7 @@ export class MainScene extends Phaser.Scene {
 
   manageSaveButton(): void {
     const saveButton = document.getElementById('save-button');
-    if (this.isValidAnswer()) {
+    if (!physicsMode && this.isValidAnswer()) {
       // @ts-ignore
       saveButton.disabled = false;
     } else {
@@ -929,6 +976,13 @@ export class MainScene extends Phaser.Scene {
   managePhysicsMode(): void {
     const checkbox = <HTMLInputElement>document.getElementById('physics-mode-checkbox');
     physicsMode = checkbox.checked;
+    if (!physicsMode) {
+      for (const v of this.vertices) {
+        this.moveTo(v, Math.round(v.x), Math.round(v.y));
+      }
+      this.drawFigure();
+    }
+    this.manageSaveButton();
   }
 
   manageDisplayId(): void {
