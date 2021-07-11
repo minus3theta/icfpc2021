@@ -270,27 +270,32 @@ public:
   }
   void add_segment_conflict_constraints() {
     // 超頂点を作成
-    vector<int> index_to_super_node;
-    for (int i = 0; i < hole_internal_points.size(); i++) {
-      new_variable++;
-      vector<int> clause;
-      for (int j = 0; j < figure_points.size(); j++) {
-        int sat_index1 =
-            sat_index_from_fig_and_point(j, hole_internal_points[i]);
-        int sat_index2 = variable_num();
-        bin_clauses.push_back(mp(-sat_index1, sat_index2));
-        clause.push_back(sat_index1);
-      }
-      clause.push_back(-variable_num());
-      sat_clauses.push_back(clause);
-      index_to_super_node.push_back(variable_num());
-    }
+    //vector<int> index_to_super_node;
+    // for (int i = 0; i < hole_internal_points.size(); i++) {
+    //   new_variable++;
+    //   vector<int> clause;
+    //   for (int j = 0; j < figure_points.size(); j++) {
+    //     int sat_index1 =
+    //         sat_index_from_fig_and_point(j, hole_internal_points[i]);
+    //     int sat_index2 = variable_num();
+    //     bin_clauses.push_back(mp(-sat_index1, sat_index2));
+    //     clause.push_back(sat_index1);
+    //   }
+    //   clause.push_back(-variable_num());
+    //   sat_clauses.push_back(clause);
+    //   index_to_super_node.push_back(variable_num());
+    // }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j = i + 1; j < hole_internal_points.size(); j++) {
         if (intersected_points[i][j]) {
-          bin_clauses.push_back(
-              mp(-index_to_super_node[i], -index_to_super_node[j]));
+          for (int k = 0; k < figure_points.size(); k++) {
+            for (int l: neighbor_figs[k]) {
+              int sat_index1 = sat_index_from_fig_and_point(k, hole_internal_points[i]);
+              int sat_index2 = sat_index_from_fig_and_point(l, hole_internal_points[j]);
+              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
+            }
+          }
         }
       }
       cerr << "Intersect constraint!!" << i + 1 << "/"
