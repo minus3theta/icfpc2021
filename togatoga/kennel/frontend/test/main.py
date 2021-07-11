@@ -66,8 +66,31 @@ class Handler(BaseHTTPRequestHandler):
             self.log_error("=" * 20)
             self.log_error(f"user: {user}")
             self.log_error(f"problem: {problemid}")
-            self.send_response_only(200)
-            self.wfile.write("OK".encode('UTF-8'))
+            self.send_response(200)
+            self.send_header('Content-type','application/json')
+            self.end_headers()
+            result_json = {
+                "dislike": 0,
+                "bonuses": [],
+                "solution_id": 8
+            }
+            self.wfile.write(json.dumps(result_json).encode('UTF-8'))
+        if re.search('^/api/minimal/(\d*)', self.path) is not None:
+            self.log_error("submit")
+            m = re.search('^/api/minimal/(\d*)', self.path)
+            problemid = int(m.groups()[0])
+            content_length = int(self.headers['content-length'])
+            s = self.rfile.read(content_length).decode('utf-8')
+            self.log_error(s)
+            self.log_error("=" * 20)
+            self.log_error(f"problem: {problemid}")
+            self.send_response(200)
+            self.send_header('Content-type','application/json')
+            self.end_headers()
+            result_json = {
+                "message": "OK"
+            }
+            self.wfile.write(json.dumps(result_json).encode('UTF-8'))
 
 PORT = 8080
 

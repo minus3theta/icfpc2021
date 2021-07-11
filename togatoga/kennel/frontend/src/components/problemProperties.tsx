@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MinimalDislike,
   store,
@@ -14,6 +14,7 @@ import {
   ListItemText,
   makeStyles,
   Paper,
+  TextField,
   Theme,
   Typography,
 } from '@material-ui/core';
@@ -47,7 +48,9 @@ export default function ProblemProperties() {
       selectedIdx: state.selected,
     };
   });
+  const [ newMinimal, setNewMinimal ] = useState<string>("");
   const dispatch = useDispatch();
+
   const fetchMinimal = async () => {
     const res = await fetch(location.origin + '/api/minimal');
     const json = (await res.json()) as MinimalDislike[];
@@ -66,6 +69,7 @@ export default function ProblemProperties() {
     if (problem?.solutions.length === 0) {
       fetchMinimal();
     }
+    setNewMinimal("");
   }, [selectedIdx]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,9 +90,33 @@ export default function ProblemProperties() {
         '/solutions/' +
         store.getState().user_name;
       const res = await fetch(location.origin + api_path, param);
-      console.log(res); // TODO: アップロードが成功したかを知らせる
+      console.log(res);
+      alert(JSON.stringify(await res.json()));
     }
   };
+
+  const postMinmal = async () => {
+    const data = {
+      "fetch_at": Date.now().toString(),
+      "minimal_dislike": newMinimal,
+      "problemId": selectedIdx + 1
+    };
+    const param = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify(data),
+    };
+
+    const api_path =
+      '/api/minimal/' +
+      problem!.id;
+      store.getState().user_name;
+    const res = await fetch(location.origin + api_path, param);
+    console.log(res);
+    alert(JSON.stringify(await res.json()));
+  }
 
   return (
     <Paper className={classes.root}>
@@ -118,6 +146,8 @@ export default function ProblemProperties() {
                 'Minimal Dislike: ' + problem?.minimal_dislike?.minimal_dislike
               }
             />
+            <TextField id="standard-basic" label="New Minimal" value={newMinimal} onChange={(e)=>{setNewMinimal(e.target.value)}}/>
+            <Button onClick={postMinmal} variant="contained">Update</Button>
           </ListItem>
           <ListItem key="epsilon">
             <ListItemText
