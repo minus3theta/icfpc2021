@@ -353,8 +353,8 @@ export class MainScene extends Phaser.Scene {
 
     const that = this;
     this.input.on('pointermove', function(pointer) {
-      const roundX = Math.round(pointer.x / displayRate);
-      const roundY = Math.round(pointer.y / displayRate);
+      const roundX = physicsMode ? pointer.x / displayRate : Math.round(pointer.x / displayRate);
+      const roundY = physicsMode ? pointer.y / displayRate : Math.round(pointer.y / displayRate);
       that.displayPosition(roundX, roundY);
 
       if (that.dragging) {
