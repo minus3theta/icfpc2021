@@ -1,3 +1,3 @@
 #!/bin/bash
-set -eux
-./kissat/build/kissat -q $1.cnf > ${1}_sat.txt
+set -ux
+./kissat/build/kissat -q --sat $1.cnf > ${1}_sat.txt

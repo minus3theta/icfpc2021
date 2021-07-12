@@ -201,6 +201,8 @@ public:
       neighbor_figs[a].push_back(b);
       neighbor_figs[b].push_back(a);
     }
+    valid_point_indices.resize(hole_internal_points.size());
+    invalid_point_indices.resize(hole_internal_points.size());
     intersected_points.resize(hole_internal_points.size(),
                               vector<int>(hole_internal_points.size(), 0));
 
@@ -208,10 +210,12 @@ public:
     for (auto &point : hole_points) {
       polygon.push_back(P(point.first, point.second));
     }
+
     for (int i = 0; i < hole_internal_points.size(); i++) {
       pll xy1 = hole_internal_points[i];
       for (int j = i + 1; j < hole_internal_points.size(); j++) {
         pll xy2 = hole_internal_points[j];
+        bool is_valid = true;
         for (int k = 0; k < hole_points.size(); k++) {
           int l = (k + 1) % hole_points.size();
           pll xy3 = hole_points[k];
@@ -219,8 +223,16 @@ public:
           if (is_intersect(mp(xy1, xy2), mp(xy3, xy4), polygon)) {
             intersected_points[i][j] = 1;
             intersected_points[j][i] = 1;
+            is_valid = false;
             break;
           }
+        }
+        if (is_valid) {
+          valid_point_indices[i].push_back(j);
+          valid_point_indices[j].push_back(i);
+        } else {
+          invalid_point_indices[i].push_back(j);
+          invalid_point_indices[j].push_back(i);
         }
       }
     }
@@ -265,10 +277,7 @@ public:
           vector<int> clause;
           clause.push_back(
               -sat_index_from_fig_and_point(j, hole_internal_points[i]));
-          for (int l = 0; l < hole_internal_points.size(); l++) {
-            if (intersected_points[i][l]) {
-              continue;
-            }
+          for (int l : valid_point_indices[i]) {
             ll new_dist =
                 calc_dist(hole_internal_points[i], hole_internal_points[l]);
             ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
@@ -372,16 +381,17 @@ public:
     }
   }
   void add_segment_conflict_constraints() {
-    // 超頂点を作成
+    //超頂点を作成
     // vector<int> index_to_super_node;
     // for (int i = 0; i < hole_internal_points.size(); i++) {
     //   new_variable++;
     //   vector<int> clause;
+    //   int super_node_sat_index = variable_num();
     //   for (int j = 0; j < figure_points.size(); j++) {
     //     int sat_index1 =
     //         sat_index_from_fig_and_point(j, hole_internal_points[i]);
-    //     int sat_index2 = variable_num();
-    //     bin_clauses.push_back(mp(-sat_index1, sat_index2));
+
+    //     bin_clauses.push_back(mp(-sat_index1, super_node_sat_index));
     //     clause.push_back(sat_index1);
     //   }
     //   clause.push_back(-variable_num());
@@ -390,16 +400,14 @@ public:
     // }
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
-      for (int j = i + 1; j < hole_internal_points.size(); j++) {
-        if (intersected_points[i][j]) {
-          for (int k = 0; k < figure_points.size(); k++) {
-            for (int l : neighbor_figs[k]) {
-              int sat_index1 =
-                  sat_index_from_fig_and_point(k, hole_internal_points[i]);
-              int sat_index2 =
-                  sat_index_from_fig_and_point(l, hole_internal_points[j]);
-              bin_clauses.push_back(mp(-sat_index1, -sat_index2));
-            }
+      for (int j : invalid_point_indices[i]) {
+        for (int k = 0; k < figure_points.size(); k++) {
+          for (int l : neighbor_figs[k]) {
+            int sat_index1 =
+                sat_index_from_fig_and_point(k, hole_internal_points[i]);
+            int sat_index2 =
+                sat_index_from_fig_and_point(l, hole_internal_points[j]);
+            bin_clauses.push_back(mp(-sat_index1, -sat_index2));
           }
         }
       }
@@ -534,6 +542,8 @@ public:
   int new_variable;
   map<pair<int, int>, int> fig_and_bucket_to_sat_index;
   vector<vector<pii>> bucket_to_points;
+  vector<vector<int>> valid_point_indices;
+  vector<vector<int>> invalid_point_indices;
 };
 void print_usage() {
   std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf>"

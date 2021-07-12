@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -ux
 
 ./gen_cnf.sh $1
 ./solve.sh $1
