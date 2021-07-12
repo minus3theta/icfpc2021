@@ -372,7 +372,7 @@ export class MainScene extends Phaser.Scene {
           const dx = roundX - that.dragBasePoint[0];
           const dy = roundY - that.dragBasePoint[1];
           for (const v of that.selectedVertices) {
-            that.moveTo(v, v.prevX + dx, v.prevY + dy);
+            that.moveTo(v, v.prevX + dx, v.prevY + dy, pointer.event.altKey);
             v.drawConnectedEdges();
           }
           that.drawHole();
@@ -651,9 +651,23 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  moveTo(v: Vertex, x: number, y: number) {
+  moveTo(v: Vertex, x: number, y: number, snapToHole: boolean = false) {
     v.x = Math.max(Math.min(x, maxValue + 2 * geta), 0);
     v.y = Math.max(Math.min(y, maxValue + 2 * geta), 0);
+    if (snapToHole) {
+      let minimum = 100 / displayRate;
+      let best: Vertex | null = null;
+      for (const holeVertex of this.holeVertices) {
+        const dist = this.calcDistance(holeVertex, v);
+        if (dist < minimum) {
+          best = holeVertex;
+        }
+      }
+      if (best != null) {
+        v.x = best.x;
+        v.y = best.y;
+      }
+    }
     v.inHole = this.holePolygon.contains(v);
     v.resetCircle();
     this.manageSaveButton();
