@@ -411,14 +411,7 @@ public:
   }
 
   void add_minimum_dislikes_constraints(const int minimum_distance) {
-    // for (int i = 0; i < hole_points.size(); i++) {
-    //   // (x_0_i or x_1_i or x_2_i or x_3_i or ... x_n_i)
-    //   vector<int> clause;
-    //   for (int j = 0; j < figure_points.size(); j++) {
-    //     clause.push_back(sat_index_from_fig_and_point(j, hole_points[i]));
-    //   }
-    //   sat_clauses.push_back(clause);
-    // }
+
     for (int i = 0; i < hole_points.size(); i++) {
       int x, y;
       tie(x, y) = hole_points[i];
@@ -474,7 +467,7 @@ public:
     for (const auto &point : hole_internal_points) {
 
       if (hole_point_set.count(point) ||
-          (point.first % 1 == 0 && point.second % 1 == 0)) {
+          (point.first % 3 == 0 && point.second % 3 == 0)) {
         new_hole_internal_points.push_back(point);
       }
     }
@@ -489,14 +482,20 @@ public:
     os.close();
   }
 
-  void solve_zero_dislikes(const std::string &input_file_name,
-                           const std::string &internal_file_name,
-                           const std::string &output_file_name) {
-
+  void solve_zero_dislikes(int argc, char *argv[]) {
+    if (argc < 4) {
+      print_usage();
+      exit(1);
+    }
+    const std::string input_file_name = argv[1];
+    const std::string internal_file_name = argv[2];
+    const std::string output_file_name = argv[3];
+    int minimum_dislikes = argc == 5 ? stoi(argv[4]) : -1;
     input(input_file_name);
     // 内点全列挙
+
     input_internal_points(internal_file_name);
-    // reduce_internal_points(internal_file_name);
+    reduce_internal_points(internal_file_name);
 
     preprocess();
 
@@ -512,7 +511,8 @@ public:
   }
   void output_cnf(std::string output_file_name) {
     ofstream os(output_file_name, ios::out | ios::binary);
-    int clause_num = sat_clauses.size() + bin_clauses.size();
+    ll clause_num = sat_clauses.size() + bin_clauses.size();
+    assert(clause_num > 0);
     os << "p cnf " << variable_num() << " " << clause_num << "\n";
 
     for (const auto &bin : bin_clauses) {
