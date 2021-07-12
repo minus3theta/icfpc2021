@@ -476,7 +476,9 @@ export class MainScene extends Phaser.Scene {
         for (const v of that.vertices) {
           if (v.selected) {
             that.areaSelected = true;
-            that.selectedVertices.push(v);
+            if (!that.selectedVertices.includes(v)) {
+              that.selectedVertices.push(v);
+            }
           }
         }
         that.manageFlipButtons();
