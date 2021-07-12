@@ -36,18 +36,9 @@ Vec2 ssCrosspoint(const Line& a, const Line& b) {
     return b.begin + B / A * b_dir;
 }
 
-bool contains(const Array<Line>& g, const Vec2& p) {
-    double sumAgl = 0;
-    for (auto& l : g) {
-        if (spIntersect(l, p)) return true;
-        sumAgl += angle(l.end - p, l.begin - p);
-    }
-    return abs(sumAgl) > 1;
-}
-
-bool containSegment(const Array<Line>& g, const Line& l) {
-    if (!contains(g, l.begin)) return false;
-    if (!contains(g, l.end)) return false;
+bool containSegment(const Polygon& poly, const Array<Line>& g, const Line& l) {
+    if (!poly.contains(l.begin)) return false;
+    if (!poly.contains(l.end)) return false;
     std::vector<Vec2> cp;
     for(auto& gl : g){
         if (ssIntersect(gl, l))
@@ -55,7 +46,7 @@ bool containSegment(const Array<Line>& g, const Line& l) {
     }
     sort(cp.begin(), cp.end(), [](const Vec2& a, const Vec2& b) {return std::make_pair(a.x, a.y) < std::make_pair(b.x, b.y); });
     for (int i = 0; i + 1 < cp.size(); i++)
-        if (!contains(g, 0.5 * (cp[i] + cp[i + 1]))) return false;
+        if (!poly.contains(0.5 * (cp[i] + cp[i + 1]))) return false;
     return true;
 }
 
@@ -85,6 +76,7 @@ GuiSolver::GuiSolver()
     , m_len_fix(0.15)
     , m_col_fix(0.2)
     , m_edge_col_fix(0.05)
+    , m_coulomb(0.0)
     , m_scale(1.0)
     , m_selected(-1)
 {}
@@ -99,6 +91,7 @@ bool GuiSolver::read(const FilePath& file) {
     m_pos.clear();
     m_vel.clear();
     m_move.clear();
+    m_adj.clear();
 
     int max_coord = 0;
     for (const auto& pt : json[U"hole"].arrayView()) {
@@ -128,6 +121,7 @@ bool GuiSolver::read(const FilePath& file) {
     for (const auto& pt : json[U"figure"][U"vertices"].arrayView()) {
         auto p = pt.getArray<double>();
         m_pos.emplace_back(m_scale * p[0] + cOffset, m_scale * p[1] + cOffset);
+        m_adj.emplace_back();
     }
 
     for (const auto& pt : json[U"figure"][U"edges"].arrayView()) {
@@ -136,6 +130,11 @@ bool GuiSolver::read(const FilePath& file) {
         const auto& src = m_pos[p[0]];
         const auto& dst = m_pos[p[1]];
         m_default_len.emplace_back(src.distanceFromSq(dst));
+    }
+
+    for (auto& e : m_edge) {
+        m_adj[e.x].insert(e.y);
+        m_adj[e.y].insert(e.x);
     }
 
     m_vel.assign(m_pos.size(), Vec2(0.0, 0.0));
@@ -161,12 +160,19 @@ void GuiSolver::readSolution(const FilePath& file) {
     }
 }
 
-void GuiSolver::write(const FilePath& file) {
+void GuiSolver::write(const FilePath& file, bool to_int) {
     TextWriter writer(file);
     writer << U"{";
     writer << U"    \"vertices\": [";
     for (int i = 0; i < m_pos.size(); i++) {
-        writer << U"        [" << (m_pos[i].x - cOffset) / m_scale << U", " << (m_pos[i].y - cOffset) / m_scale << (i == m_pos.size() - 1 ? U"]" : U"],");
+        if (to_int) {
+            int32 x = int32((m_pos[i].x - cOffset) / m_scale + 0.5);
+            int32 y = int32((m_pos[i].y - cOffset) / m_scale + 0.5);
+            writer << U"        [" << x << U", " << y << (i == m_pos.size() - 1 ? U"]" : U"],");
+        }
+        else {
+            writer << U"        [" << (m_pos[i].x - cOffset) / m_scale << U", " << (m_pos[i].y - cOffset) / m_scale << (i == m_pos.size() - 1 ? U"]" : U"],");
+        }
     }
     writer << U"    ]";
     writer << U"}";
@@ -219,12 +225,25 @@ void GuiSolver::writeHint(const FilePath& file, const FilePath& inner_file, int3
     }
 }
 
+double GuiSolver::getDislike() const {
+    double dislike = 0.0;
+    for (auto& l : m_edge_line) {
+        double min_dist = 1e12;
+        for (auto& p : m_pos) {
+            min_dist = std::min(min_dist, p.distanceFromSq(l.begin));
+        }
+        dislike += min_dist;
+    }
+    return dislike / (m_scale * m_scale);
+}
+
 void GuiSolver::update() {
     {
-        SimpleGUI::Slider(U"{:.3f}"_fmt(m_vel_reduce), m_vel_reduce, 0.0, 1.0, Vec2(800, 260), 60, 150);
-        SimpleGUI::Slider(U"{:.3f}"_fmt(m_len_fix), m_len_fix, 0.0, 1.0, Vec2(800, 340), 60, 150);
-        SimpleGUI::Slider(U"{:.3f}"_fmt(m_col_fix), m_col_fix, 0.0, 1.0, Vec2(800, 420), 60, 150);
-        SimpleGUI::Slider(U"{:.3f}"_fmt(m_edge_col_fix), m_edge_col_fix, 0.0, 1.0, Vec2(800, 500), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_vel_reduce), m_vel_reduce, 0.0, 1.0, Vec2(800, 250), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_len_fix), m_len_fix, 0.0, 1.0, Vec2(800, 300), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_col_fix), m_col_fix, 0.0, 1.0, Vec2(800, 350), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_edge_col_fix), m_edge_col_fix, 0.0, 1.0, Vec2(800, 400), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_coulomb), m_coulomb, 0.0, 5.0, Vec2(800, 450), 60, 150);
     }
 
     if (m_pos.empty()) return;
@@ -306,7 +325,7 @@ void GuiSolver::update() {
             min_depth = sqrt(min_depth);
             Vec2 dir = closest - m_pos[i];
             dir.normalize();
-            m_vel_dif[i].update(dir, min_depth);
+            m_vel_dif[i].update(dir, m_col_fix * min_depth);
         }
         for(int i=0;i<m_edge.size();i++){
             const auto& e = m_edge[i];
@@ -334,7 +353,7 @@ void GuiSolver::update() {
                 nrm.y = dir.x;
 
                 for (size_t j = 0; j + 1 < col_point.size(); j++) {
-                    if (!::contains(m_edge_line, 0.5 * (col_point[j].first + col_point[j + 1].first))) continue;
+                    if (m_hole.contains(0.5 * (col_point[j].first + col_point[j + 1].first))) continue;
                     size_t src_idx = col_point[j].second;
                     size_t dst_idx = col_point[j + 1].second;
                     if (src_idx > dst_idx) std::swap(src_idx, dst_idx);
@@ -409,6 +428,32 @@ void GuiSolver::update() {
                 }
             }
         }
+        // グラフ描画力学モデルのクーロン力
+        if (m_coulomb > 0.0) {
+            for (int i = 0; i < m_pos.size(); i++) {
+                for (int j = i + 1; j < m_pos.size(); j++) {
+                    if (!m_move[i] && !m_move[j]) continue;
+                    if (m_adj[i].count(j)) continue;
+                    Vec2 dir = m_pos[j] - m_pos[i];
+                    double dist_sq = std::max(0.01 * m_scale * m_scale, dir.lengthSq());
+                    if (dist_sq < EPS) {
+                        dist_sq = 0.01 * m_scale * m_scale;
+                        dir.set(1.0, 0.0);
+                    }
+                    dir.normalize();
+                    double force = m_coulomb / dist_sq * m_scale * m_scale;
+                    if (m_move[i]) {
+                        m_vel[i].x -= force * dir.x;
+                        m_vel[i].y -= force * dir.y;
+                    }
+                    if (m_move[j]) {
+                        m_vel[j].x += force * dir.x;
+                        m_vel[j].y += force * dir.y;
+                    }
+                }
+            }
+        }
+
         for (int i = 0; i < m_pos.size(); i++) {
             m_vel_dif[i].apply(m_vel[i]);
             m_pos[i].x += m_vel[i].x / (cFrame * cRepeatNum);
@@ -423,11 +468,7 @@ void GuiSolver::update() {
         const auto& src = m_pos[e.x];
         const auto& dst = m_pos[e.y];
         auto line = Line(src, dst);
-        bool contain = m_hole.contains(src);
-        for (auto& l : m_edge_line) {
-            if (!contain) break;
-            if (line.intersectsAt(l)) contain = false;
-        }
+        bool contain = ::containSegment(m_hole, m_edge_line, line);
         const double cur_dist = line.lengthSq();
         const double min_dist = m_default_len[i] * (1 - m_epsilon);
         const double max_dist = m_default_len[i] * (1 + m_epsilon);
