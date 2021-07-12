@@ -596,8 +596,11 @@ export class MainScene extends Phaser.Scene {
   }
 
   moveByVelocity(): void {
+    const velocityLimit = 30;
     for (const v of this.vertices) {
       if (v.selected) continue;
+      v.vx = Math.min(velocityLimit, Math.max(-velocityLimit, v.vx));
+      v.vy = Math.min(velocityLimit, Math.max(-velocityLimit, v.vy));
       this.moveTo(v, v.x + v.vx, v.y + v.vy);
     }
   }
