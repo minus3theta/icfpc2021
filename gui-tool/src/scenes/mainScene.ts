@@ -229,7 +229,7 @@ export class FigureEdge extends Edge {
   }
 
   updateLineStyle(): void {
-    this.graphics.destroy();
+    this.graphics.clear();
     const len = this.calcLength();
     let width = 4;
     let color = 0xFF00FF;
@@ -254,7 +254,10 @@ export class FigureEdge extends Edge {
       alpha = 0.6;
     }
 
-    this.graphics = this.scene.add.graphics({ lineStyle: { width: width, color: color, alpha: alpha } });
+    this.graphics.defaultStrokeWidth = width;
+    this.graphics.defaultStrokeColor = color;
+    this.graphics.defaultStrokeAlpha = alpha;
+
     this.updateLine();
   }
 }
