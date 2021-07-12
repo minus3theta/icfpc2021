@@ -719,12 +719,18 @@ func dislikes(hole []Position, vertices []Position) int {
 	return ans
 }
 func checkLengthConstraint(problem Problem, distance, originalDistance int, bonus string) bool {
-	expansion := math.Abs(float64(distance)/float64(originalDistance) - 1.0)
-	expansionLimit := float64(problem.Epsilon) / 1000000.0
-	if bonus == BonusKindGlobalist {
-		expansionLimit *= float64(len(problem.Figure.Edges))
+	if distance == originalDistance {
+		return false
 	}
-	return expansion > expansionLimit
+	epsilon := int64(problem.Epsilon)
+	if bonus == BonusKindGlobalist {
+		epsilon *= int64(len(problem.Figure.Edges))
+	}
+	if distance < originalDistance {
+		var delta int64 = epsilon + int64(1e6)
+		return int64(1e6)*int64(distance)-delta*int64(originalDistance) > 0
+	}
+	return int64(1e6)*int64(distance)-(int64(1e6)-epsilon)*int64(originalDistance) < 0
 }
 func getScore(problem Problem, solution Solution) (Score, error) {
 	bonus := BonusInSolution{}
