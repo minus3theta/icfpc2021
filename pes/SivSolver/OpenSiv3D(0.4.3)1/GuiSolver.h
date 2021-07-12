@@ -23,6 +23,7 @@ private:
 	double m_vel_reduce;
 	double m_len_fix;
 	double m_col_fix;
+	double m_edge_col_fix;
 	double m_scale;
 	int32 m_selected;
 };

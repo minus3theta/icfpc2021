@@ -4,6 +4,8 @@
 
 #include "GuiSolver.h"
 
+#include <cmath>
+
 void Main()
 {
 	// 背景を水色にする
@@ -72,12 +74,12 @@ void Main()
 		inner.append(U"hori1991/innerpoint/");
 		inner.append(problem_id.text);
 		inner.append(U"_innerpoint.txt");
-		if (SimpleGUI::Button(U"Write Hint", Vec2(800, 500), unspecified, FileSystem::Exists(inner))) {
+		if (SimpleGUI::Button(U"Write Hint", Vec2(800, 580), unspecified, FileSystem::Exists(inner))) {
 			if (auto file = Dialog::SaveFile({ FileFilter::Text() })) {
 				solver.writeHint(*file, inner, (int32)hint_dist);
 			}
 		}
-		SimpleGUI::Slider(U"Dist: {:d}"_fmt((int32)hint_dist), hint_dist, 1, 5, Vec2(800, 580), 80, 150);
+		SimpleGUI::Slider(U"Dist: {:d}"_fmt((int32)hint_dist), hint_dist, 1, 5, Vec2(800, 660), 80, 150);
 	}
 }
 
