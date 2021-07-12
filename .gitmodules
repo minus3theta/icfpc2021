@@ -1,0 +1,3 @@
+[submodule "togatoga/solver/kissat"]
+	path = togatoga/solver/kissat
+	url = https://github.com/arminbiere/kissat
