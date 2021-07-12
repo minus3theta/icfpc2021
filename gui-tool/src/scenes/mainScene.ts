@@ -1067,6 +1067,8 @@ export class MainScene extends Phaser.Scene {
     if (!physicsMode) {
       for (const v of this.vertices) {
         this.moveTo(v, Math.round(v.x), Math.round(v.y));
+        v.vx = 0;
+        v.vy = 0;
       }
       this.drawFigure();
       this.drawHole();
