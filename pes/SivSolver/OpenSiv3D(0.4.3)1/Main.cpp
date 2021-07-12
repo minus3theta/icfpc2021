@@ -24,6 +24,7 @@ void Main()
 	TextEditState problem_id;
 	String last_problem_id = U"";
 	double hint_dist = 1;
+	const Font font(25);
 
 	while (System::Update())
 	{
@@ -39,47 +40,41 @@ void Main()
 			Print << file;
 			if (solver.read(file)) {
 				last_problem_id = problem_id.text;
-			}
-			else {
-				problem_id.text = last_problem_id;
-			}
-		}
-		if (SimpleGUI::Button(U"Read Solution", Vec2(800, 100)))
-		{
-			if (auto file = Dialog::OpenFile({ FileFilter::JSON() })) {
-				solver.readSolution(*file);
-			}
-		}
-		if (SimpleGUI::Button(U"Write Solution", Vec2(800, 180)))
-		{
-			if (auto file = Dialog::SaveFile({ FileFilter::JSON() })) {
-				solver.write(*file);
-			}
-		}
-		if (SimpleGUI::Button(U"Read", Vec2(920, 20)))
-		{
-			auto file = a;
-			file.append(U"problems/");
-			file.append(problem_id.text);
-			file.append(U".json");
-			if (solver.read(file)) {
-				last_problem_id = problem_id.text;
 				ClearPrint();
 			}
 			else {
 				problem_id.text = last_problem_id;
 			}
 		}
+		if (SimpleGUI::Button(U"Read Solution", Vec2(800, 70)))
+		{
+			if (auto file = Dialog::OpenFile({ FileFilter::JSON() })) {
+				solver.readSolution(*file);
+			}
+		}
+		if (SimpleGUI::Button(U"Write Solution", Vec2(800, 120)))
+		{
+			if (auto file = Dialog::SaveFile({ FileFilter::JSON() })) {
+				solver.write(*file);
+			}
+		}
+		if (SimpleGUI::Button(U"Write Solution (int)", Vec2(800, 170)))
+		{
+			if (auto file = Dialog::SaveFile({ FileFilter::JSON() })) {
+				solver.write(*file, true);
+			}
+		}
 		auto inner = a;
 		inner.append(U"hori1991/innerpoint/");
 		inner.append(problem_id.text);
 		inner.append(U"_innerpoint.txt");
-		if (SimpleGUI::Button(U"Write Hint", Vec2(800, 580), unspecified, FileSystem::Exists(inner))) {
+		if (SimpleGUI::Button(U"Write Hint", Vec2(800, 550), unspecified, FileSystem::Exists(inner))) {
 			if (auto file = Dialog::SaveFile({ FileFilter::Text() })) {
 				solver.writeHint(*file, inner, (int32)hint_dist);
 			}
 		}
-		SimpleGUI::Slider(U"Dist: {:d}"_fmt((int32)hint_dist), hint_dist, 1, 5, Vec2(800, 660), 80, 150);
+		SimpleGUI::Slider(U"Dist: {:d}"_fmt((int32)hint_dist), hint_dist, 1, 5, Vec2(800, 600), 80, 150);
+		font(U"Dislike: {:.2f}"_fmt(solver.getDislike())).draw(800, 700, Palette::Black);
 	}
 }
 
