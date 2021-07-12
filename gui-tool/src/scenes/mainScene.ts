@@ -118,6 +118,11 @@ class BonusVertex {
         lineStyle: { width: 3, color: 0x000099 },
         fillStyle: { color: 0x0000FF, alpha: 0.7 }
       });
+    } else if (this.bonus === 'SUPERFLEX') {
+      this.graphics = scene.add.graphics({
+        lineStyle: { width: 3, color: 0x009999},
+        fillStyle: { color: 0x00FFFF, alpha: 0.7 }
+      });
     }
   }
 
