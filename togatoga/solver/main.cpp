@@ -174,7 +174,7 @@ static bool is_intersect(const pair<pll, pll> &e1, const pair<pll, pll> &e2,
 
 class Solver {
 public:
-  Solver() : new_variable(0) {}
+  Solver() : new_variable(0), enable_hint(false) {}
 
   void preprocess() {
     int max_x = 0;
@@ -210,7 +210,6 @@ public:
     for (auto &point : hole_points) {
       polygon.push_back(P(point.first, point.second));
     }
-
     for (int i = 0; i < hole_internal_points.size(); i++) {
       pll xy1 = hole_internal_points[i];
       valid_point_indices[i].push_back(i);
@@ -255,23 +254,60 @@ public:
     int internal_point_num;
     ifs >> internal_point_num;
 
-    hole_internal_points.resize(internal_point_num);
-    for (auto &point : hole_internal_points) {
-      ifs >> point.first >> point.second;
+    for (int i = 0; i < internal_point_num; i++) {
+      int x, y;
+      ifs >> x >> y;
+      // hint pointだけ残す
+      if (enable_hint) {
+        if (hint_point_to_fig_index_set.count(mp(x, y)) > 0) {
+          hole_internal_points.push_back(mp(x, y));
+        }
+      } else {
+        hole_internal_points.push_back(mp(x, y));
+      }
     }
+    if (enable_hint) {
+      assert(hole_internal_points.size() == hint_point_to_fig_index_set.size());
+    }
+
     ifs.close();
+
+    if (enable_hint) {
+      // 差っ引いたinternalポイントをファイルに保存しておく
+      const string output_file_name = file_name + "_hint_points.txt";
+      ofstream os(output_file_name, ios::out | ios::binary);
+      os << hole_internal_points.size() << "\n";
+      for (auto &point : hole_internal_points) {
+        os << point.first << " " << point.second << "\n";
+      }
+      os.close();
+    }
     cerr << "Done!! " << __func__ << endl;
   }
+
+  bool in_hint_point_set(int fig_idx, pii xy) {
+    if (!enable_hint) {
+      return true;
+    }
+    return hint_point_to_fig_index_set[xy].count(fig_idx) > 0;
+  }
   void add_edge_constraints() {
+
     // 辺の制約を作成
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j = 0; j < figure_points.size(); j++) {
+        if (!in_hint_point_set(j, hole_internal_points[i])) {
+          continue;
+        }
         for (int k : neighbor_figs[j]) {
           ll previous_dist = calc_dist(figure_points[j], figure_points[k]);
           vector<int> clause;
           clause.push_back(
               -sat_index_from_fig_and_point(j, hole_internal_points[i]));
           for (int l : valid_point_indices[i]) {
+            if (!in_hint_point_set(k, hole_internal_points[l])) {
+              continue;
+            }
             ll new_dist =
                 calc_dist(hole_internal_points[i], hole_internal_points[l]);
             ll left_value = abs(new_dist - previous_dist) * THRESHOLD;
@@ -375,24 +411,29 @@ public:
     }
   }
   void add_segment_conflict_constraints() {
-    //超頂点を作成
-    // vector<int> index_to_super_node;
-    // for (int i = 0; i < hole_internal_points.size(); i++) {
-    //   new_variable++;
-    //   vector<int> clause;
-    //   int super_node_sat_index = variable_num();
-    //   for (int j = 0; j < figure_points.size(); j++) {
-    //     int sat_index1 =
-    //         sat_index_from_fig_and_point(j, hole_internal_points[i]);
-
-    //     bin_clauses.push_back(mp(-sat_index1, super_node_sat_index));
-    //     clause.push_back(sat_index1);
-    //   }
-    //   clause.push_back(-variable_num());
-    //   sat_clauses.push_back(clause);
-    //   index_to_super_node.push_back(variable_num());
-    // }
-
+    if (enable_hint) {
+      for (int i = 0; i < hole_internal_points.size(); i++) {
+        for (int j : invalid_point_indices[i]) {
+          for (int k = 0; k < figure_points.size(); k++) {
+            if (!in_hint_point_set(k, hole_internal_points[i])) {
+              continue;
+            }
+            for (int l : neighbor_figs[k]) {
+              if (!in_hint_point_set(l, hole_internal_points[j])) {
+                continue;
+              }
+              bin_clauses.push_back(mp(
+                  -sat_index_from_fig_and_point(k, hole_internal_points[i]),
+                  -sat_index_from_fig_and_point(l, hole_internal_points[l])));
+            }
+            // sat_clauses.push_back(clause);
+          }
+        }
+        cerr << "Hint segment conflict constraints " << i + 1 << "/"
+             << hole_internal_points.size() << endl;
+      }
+      return;
+    }
     for (int i = 0; i < hole_internal_points.size(); i++) {
       for (int j : invalid_point_indices[i]) {
         for (int k = 0; k < figure_points.size(); k++) {
@@ -434,20 +475,71 @@ public:
     }
   }
   void print_usage() {
-    std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf> "
+    std::cout << "usage: ./a.out <problem.txt> <internal.txt> <hint.txt> "
+                 "<output.cnf> "
                  "[minimum dislikes]"
               << std::endl;
   }
+  void add_hint_constraints() {
+    for (int i = 0; i < figure_points.size(); i++) {
+      vector<int> clause;
+      // 各figureは必ずヒントの頂点集合のどれかに属し、そうでない頂点には属さない
+      for (const auto &point : hole_internal_points) {
+        if (in_hint_point_set(i, point)) {
+          clause.push_back(sat_index_from_fig_and_point(i, point));
+        } else {
+          unit_clauses.push_back(-sat_index_from_fig_and_point(i, point));
+        }
+      }
+      assert(!clause.empty());
+      sat_clauses.push_back(clause);
+      // 各figureが属する点はただ一つ
+      for (int j = 0; j < fig_index_to_hint_points[i].size(); j++) {
+        int x = sat_index_from_fig_and_point(i, fig_index_to_hint_points[i][j]);
+        for (int k = j + 1; k < fig_index_to_hint_points[i].size(); k++) {
+          int y =
+              sat_index_from_fig_and_point(i, fig_index_to_hint_points[i][k]);
+          bin_clauses.push_back(mp(-x, -y));
+        }
+      }
+    }
+  }
+  void input_hint_points(const string &file_name) {
+    ifstream ifs(file_name, std::ios::in);
+    int hint_figure_point_num;
+    ifs >> hint_figure_point_num;
+    // cerr << hint_figure_point_num << endl;
+    // assert(false);
+    assert(hint_figure_point_num == figure_points.size());
+    enable_hint = true;
+    fig_index_to_hint_points.resize(figure_points.size());
+    for (int i = 0; i < figure_points.size(); i++) {
+      int point_num;
+      ifs >> point_num;
+      for (int j = 0; j < point_num; j++) {
+        int x, y;
+        ifs >> x >> y;
+
+        hint_point_to_fig_index_set[mp(x, y)].insert(i);
+        fig_index_to_hint_points[i].push_back(mp(x, y));
+      }
+    }
+  }
+
   void solve(int argc, char *argv[]) {
-    if (argc < 4) {
+
+    if (argc < 5) {
       print_usage();
       exit(1);
     }
     const std::string input_file_name = argv[1];
     const std::string internal_file_name = argv[2];
-    const std::string output_file_name = argv[3];
-    int minimum_dislikes = argc == 5 ? stoi(argv[4]) : -1;
+    const std::string hint_file_name = argv[3];
+    const std::string output_file_name = argv[4];
+
+    int minimum_dislikes = argc == 6 ? stoi(argv[5]) : -1;
     input(input_file_name);
+    input_hint_points(hint_file_name);
     // 内点全列挙
     input_internal_points(internal_file_name);
     preprocess();
@@ -455,8 +547,12 @@ public:
       add_minimum_dislikes_constraints(minimum_dislikes);
     }
 
+    if (enable_hint) {
+      add_hint_constraints();
+    } else {
+      add_node_constraints();
+    }
     add_edge_constraints();
-    add_node_constraints();
     add_segment_conflict_constraints();
     output_cnf(output_file_name);
   }
@@ -507,14 +603,20 @@ public:
   }
 
   int variable_num() {
-    return figure_num * hole_internal_points.size() + new_variable + 1;
+    return figure_points.size() * hole_internal_points.size() + new_variable +
+           1;
   }
   void output_cnf(std::string output_file_name) {
+
     ofstream os(output_file_name, ios::out | ios::binary);
-    ll clause_num = sat_clauses.size() + bin_clauses.size();
+    ll clause_num =
+        sat_clauses.size() + unit_clauses.size() + bin_clauses.size();
+    cerr << "output cnf: " << variable_num() << " " << clause_num << endl;
     assert(clause_num > 0);
     os << "p cnf " << variable_num() << " " << clause_num << "\n";
-
+    for (const auto &v : unit_clauses) {
+      os << v << " 0\n";
+    }
     for (const auto &bin : bin_clauses) {
       os << bin.first << " " << bin.second << " 0\n";
     }
@@ -563,19 +665,22 @@ public:
   vector<vector<int>> neighbor_figs;
   vector<vector<int>> point_to_index;
   vector<vector<int>> sat_clauses;
+  vector<int> unit_clauses;
   vector<pii> bin_clauses;
   vector<vector<int>> intersected_points;
   // vector<int> assignments;
   int new_variable;
+  bool enable_hint;
   map<pair<int, int>, int> fig_and_bucket_to_sat_index;
   vector<vector<pii>> bucket_to_points;
   vector<vector<int>> valid_point_indices;
   vector<vector<int>> invalid_point_indices;
+  vector<vector<pll>> fig_index_to_hint_points;
+  map<pll, set<int>> hint_point_to_fig_index_set;
 };
 
 int main(int argc, char *argv[]) {
   Solver s = Solver();
-
   s.solve(argc, argv);
 
   return 0;
