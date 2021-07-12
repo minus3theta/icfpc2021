@@ -1073,6 +1073,8 @@ export class MainScene extends Phaser.Scene {
       this.drawFigure();
       this.drawHole();
       this.displayDislikes();
+    } else {
+      this.pushHistory();
     }
     this.manageSaveButton();
   }
