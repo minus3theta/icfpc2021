@@ -1,6 +1,9 @@
 #!/bin/bash
 set -x
 
-./gen_cnf.sh $1 $2
+problem_num=$1
+hint_file=$2
+
+./gen_cnf.sh $problem_num $hint
 ./solve.sh $1
-./gen_sol_json.sh $1
+./gen_hint_sol_json.sh $1

@@ -27,7 +27,7 @@ def parse_problem(file):
         eps = f.readline().rstrip()
         return fig_num
 
-def parse_internal(file):
+def parse_cand_point_file(file):
     index_to_point = []
     with open(file, 'r') as f:
         line = f.readline().rstrip()
@@ -41,9 +41,17 @@ def parse_internal(file):
 def parse_kissat(file):
     variables = []
     with open(file, 'r') as f:
-        status = f.readline().rstrip()
-        assert status == "s SATISFIABLE"
         for line in f:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            if line[0] == 'c':
+                continue
+            elif line[0] == 's':
+                status = line.rstrip()                
+                assert status == "s SATISFIABLE"
+                continue
+            
             tmps = map(int, line.rstrip().split()[1:])
             for v in tmps:
                 if v != 0:
@@ -57,13 +65,20 @@ if __name__ == '__main__':
     parser.add_argument('--problem', required=True)
     parser.add_argument('--internal', required=True)
     parser.add_argument('--kiss', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--hint', required=False)
     args = parser.parse_args()
     if args.kiss:
         variables = parse_kissat(args.sat)
     else:
         variables = parse_sat(args.sat)
+
+    if args.hint:
+        index_to_point = parse_cand_point_file(args.hint)
+        #print(index_to_point)
+    else:
+        index_to_point = parse_cand_point_file(args.internal)
     fig_num = parse_problem(args.problem)
-    index_to_point = parse_internal(args.internal)
+    
     vertices = []
     for (i, v) in enumerate(variables):
         if v > 0:
