@@ -3,12 +3,61 @@
 #include <vector>
 #include <cmath>
 #include <set>
+#include <complex>
 
 #include "GuiSolver.h"
 
 constexpr double cOffset = 10.0;
 constexpr int cRepeatNum = 4;
 constexpr int cFrame = 60;
+
+constexpr double EPS = 1e-8;
+
+inline double dot(const Vec2& a, const Vec2& b) { return a.dot(b); }
+inline double cross(const Vec2& a, const Vec2& b) { return a.cross(b); }
+double angle(const Vec2& a, const Vec2& b) { return atan2(a.x * b.y - a.y * b.y, a.x * b.x + a.y * b.y); }
+
+bool ssIntersect(const Line& a, const Line& b) {
+    Vec2 a_dir = a.end - a.begin;
+    Vec2 b_dir = b.end - b.begin;
+    if (abs(cross(a_dir, b_dir)/b_dir.lengthSq()) < EPS) return false;
+    return cross(a_dir, b.begin - a.begin) * cross(a_dir, b.end - a.begin) < -EPS &&
+        cross(b_dir, a.begin - b.begin) * cross(b_dir, a.end - b.begin) < -EPS;
+}
+
+bool spIntersect(const Line& l, const Vec2& p) {
+    return abs(p.distanceFrom(l.begin) + p.distanceFrom(l.end) - l.length()) < EPS;
+}
+
+Vec2 ssCrosspoint(const Line& a, const Line& b) {
+    Vec2 b_dir = b.end - b.begin;
+    double A = cross(a.end - a.begin, b_dir);
+    double B = cross(a.end - a.begin, a.end - b.begin);
+    return b.begin + B / A * b_dir;
+}
+
+bool contains(const Array<Line>& g, const Vec2& p) {
+    double sumAgl = 0;
+    for (auto& l : g) {
+        if (spIntersect(l, p)) return true;
+        sumAgl += angle(l.end - p, l.begin - p);
+    }
+    return abs(sumAgl) > 1;
+}
+
+bool containSegment(const Array<Line>& g, const Line& l) {
+    if (!contains(g, l.begin)) return false;
+    if (!contains(g, l.end)) return false;
+    std::vector<Vec2> cp;
+    for(auto& gl : g){
+        if (ssIntersect(gl, l))
+            cp.push_back(ssCrosspoint(gl, l));
+    }
+    sort(cp.begin(), cp.end(), [](const Vec2& a, const Vec2& b) {return std::make_pair(a.x, a.y) < std::make_pair(b.x, b.y); });
+    for (int i = 0; i + 1 < cp.size(); i++)
+        if (!contains(g, 0.5 * (cp[i] + cp[i + 1]))) return false;
+    return true;
+}
 
 class MinMaxVec {
 public:
@@ -35,6 +84,7 @@ GuiSolver::GuiSolver()
     : m_vel_reduce(0.995)
     , m_len_fix(0.15)
     , m_col_fix(0.2)
+    , m_edge_col_fix(0.05)
     , m_scale(1.0)
     , m_selected(-1)
 {}
@@ -174,6 +224,7 @@ void GuiSolver::update() {
         SimpleGUI::Slider(U"{:.3f}"_fmt(m_vel_reduce), m_vel_reduce, 0.0, 1.0, Vec2(800, 260), 60, 150);
         SimpleGUI::Slider(U"{:.3f}"_fmt(m_len_fix), m_len_fix, 0.0, 1.0, Vec2(800, 340), 60, 150);
         SimpleGUI::Slider(U"{:.3f}"_fmt(m_col_fix), m_col_fix, 0.0, 1.0, Vec2(800, 420), 60, 150);
+        SimpleGUI::Slider(U"{:.3f}"_fmt(m_edge_col_fix), m_edge_col_fix, 0.0, 1.0, Vec2(800, 500), 60, 150);
     }
 
     if (m_pos.empty()) return;
@@ -263,54 +314,60 @@ void GuiSolver::update() {
             const auto& src = m_pos[e.x];
             const auto& dst = m_pos[e.y];
             auto line = Line(src, dst);
-            // 線分 vs ホール枠のコリジョン。これはダメそう
-            /*
-            if (lineInHold(line)) {
-                for (auto& l : m_edge_line) {
-                    Vec2 closest_src = l.closest(src);
-                    Vec2 closest_dst = src;
-                    double min_dist = src.distanceFromSq(closest_src);
-                    {
-                        auto p = l.closest(dst);
-                        double cur_dist = dst.distanceFromSq(p);
-                        if (cur_dist < min_dist) {
-                            min_dist = cur_dist;
-                            closest_src = p;
-                            closest_dst = dst;
+            // 線分 vs ホール枠のコリジョン
+            if((m_move[e.x] || m_move[e.y]) && m_edge_col_fix  > 0.0){
+                std::vector<std::pair<Vec2, size_t>> col_point;
+                const size_t n = m_edge_line.size();
+                for (size_t j = 0; j < n; j++) {
+                    if (::ssIntersect(line, m_edge_line[j])) {
+                        col_point.emplace_back(::ssCrosspoint(line, m_edge_line[j]), j);
+                    }
+                }
+                sort(col_point.begin(), col_point.end(), [](const std::pair<Vec2, size_t>& a, const std::pair<Vec2, size_t>& b) {
+                    return std::make_pair(a.first.x, a.first.y) < std::make_pair(b.first.x, b.first.y);
+                });
+                Vec2 dir = dst - src;
+                const double len = dir.length();
+                dir.normalize();
+                Vec2 nrm;
+                nrm.x = -dir.y;
+                nrm.y = dir.x;
+
+                for (size_t j = 0; j + 1 < col_point.size(); j++) {
+                    if (!::contains(m_edge_line, 0.5 * (col_point[j].first + col_point[j + 1].first))) continue;
+                    size_t src_idx = col_point[j].second;
+                    size_t dst_idx = col_point[j + 1].second;
+                    if (src_idx > dst_idx) std::swap(src_idx, dst_idx);
+                    if (dst_idx - src_idx > src_idx + n - dst_idx) {
+                        std::swap(src_idx, dst_idx);
+                        dst_idx += n;
+                    }
+                    double dt = dot(nrm, m_edge_line[src_idx].end - col_point[j].first);
+                    double max_dif = abs(dt);
+                    double sgn = (dt > 0 ? 1 : -1);
+                    Vec2 col_pt = m_edge_line[src_idx].end;
+                    for (size_t k = src_idx+1; k < dst_idx; k++) {
+                        auto idx = k >= n ? k - n : k;
+                        dt = sgn * dot(nrm, m_edge_line[idx].end - col_point[j].first);
+                        if (max_dif < dt) {
+                            max_dif = dt;
+                            col_pt = m_edge_line[idx].end;
                         }
                     }
-                    {
-                        auto p = line.closest(l.begin);
-                        double cur_dist = p.distanceFromSq(l.begin);
-                        if (cur_dist < min_dist) {
-                            min_dist = cur_dist;
-                            closest_src = l.begin;
-                            closest_dst = p;
-                        }
+                    if (!m_move[e.x]) {
+                        m_vel_dif[e.y].update(nrm, m_edge_col_fix* sgn* max_dif);
                     }
-                    {
-                        auto p = line.closest(l.end);
-                        double cur_dist = p.distanceFromSq(l.end);
-                        if (cur_dist < min_dist) {
-                            min_dist = cur_dist;
-                            closest_src = l.end;
-                            closest_dst = p;
-                        }
+                    else if (!m_move[e.y]) {
+                        m_vel_dif[e.x].update(nrm, m_edge_col_fix* sgn* max_dif);
                     }
-                    if (1e-4 < min_dist && min_dist < 0.04) {
-                        Vec2 dir = closest_dst - closest_src;
-                        double depth = sqrt(min_dist);
-                        dir.normalize();
-                        if (dir.dot(m_vel[e.x]) <= 0.0 && m_move[e.x]) {
-                            m_vel_dif[e.x].update(dir, m_col_fix * depth);
-                        }
-                        if (dir.dot(m_vel[e.y]) <= 0.0 && m_move[e.x]) {
-                            m_vel_dif[e.y].update(dir, m_col_fix * depth);
-                        }
+                    else {
+                        double ratio = dir.dot(col_pt - src) / len;
+                        ratio = std::clamp(ratio, 0.0, 1.0);
+                        m_vel_dif[e.x].update(nrm, (1 - ratio) * m_edge_col_fix * sgn * max_dif);
+                        m_vel_dif[e.y].update(nrm, ratio * m_edge_col_fix * sgn * max_dif);
                     }
                 }
             }
-            */
             Vec2 rel_vel = m_vel[e.y] - m_vel[e.x];
             const double cur_dist = line.lengthSq();
             const double min_dist = m_default_len[i] * (1 - m_epsilon);
