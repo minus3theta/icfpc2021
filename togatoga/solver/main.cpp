@@ -213,21 +213,13 @@ public:
 
     for (int i = 0; i < hole_internal_points.size(); i++) {
       pll xy1 = hole_internal_points[i];
+      valid_point_indices[i].push_back(i);
       for (int j = i + 1; j < hole_internal_points.size(); j++) {
         pll xy2 = hole_internal_points[j];
         bool is_valid = true;
-        for (int k = 0; k < hole_points.size(); k++) {
-          int l = (k + 1) % hole_points.size();
-          pll xy3 = hole_points[k];
-          pll xy4 = hole_points[l];
-          if (is_intersect(mp(xy1, xy2), mp(xy3, xy4), polygon)) {
-            intersected_points[i][j] = 1;
-            intersected_points[j][i] = 1;
-            is_valid = false;
-            break;
-          }
-        }
-        if (is_valid) {
+        L s = mp(P(xy1.first, xy1.second), P(xy2.first, xy2.second));
+        if (polygonInSegment(s, polygon)) {
+
           valid_point_indices[i].push_back(j);
           valid_point_indices[j].push_back(i);
         } else {
@@ -235,6 +227,8 @@ public:
           invalid_point_indices[j].push_back(i);
         }
       }
+      cerr << "preprocess validation two points " << i + 1 << "/"
+           << hole_internal_points.size() << endl;
     }
 
     cerr << "Preprocess Done!! " << __func__ << endl;
@@ -411,29 +405,55 @@ public:
           }
         }
       }
-      cerr << "Intersect constraint!!" << i + 1 << "/"
+      cerr << "Intersect constraint!! " << i + 1 << "/"
            << hole_internal_points.size() << endl;
     }
   }
 
-  void add_at_least_one_point_on_node_constraints() {
+  void add_minimum_dislikes_constraints(const int minimum_distance) {
+
     for (int i = 0; i < hole_points.size(); i++) {
-      // (x_0_i or x_1_i or x_2_i or x_3_i or ... x_n_i)
+      int x, y;
+      tie(x, y) = hole_points[i];
       vector<int> clause;
-      for (int j = 0; j < figure_points.size(); j++) {
-        clause.push_back(sat_index_from_fig_and_point(j, hole_points[i]));
+      for (int j : valid_point_indices[point_to_index[x][y]]) {
+        ll distance = calc_dist(hole_points[i], hole_internal_points[j]);
+        if (distance <= minimum_distance) {
+          for (int k = 0; k < figure_points.size(); k++) {
+            clause.push_back(
+                sat_index_from_fig_and_point(k, hole_internal_points[j]));
+          }
+        }
       }
-      sat_clauses.push_back(clause);
+      if (!clause.empty()) {
+        sat_clauses.push_back(clause);
+      }
+
+      cerr << "Add minimum dislikes constraints " << minimum_distance << " "
+           << i + 1 << "/" << hole_points.size() << endl;
     }
   }
-  void solve(const std::string &input_file_name,
-             const std::string &internal_file_name,
-             const std::string &output_file_name) {
-
+  void print_usage() {
+    std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf> "
+                 "[minimum dislikes]"
+              << std::endl;
+  }
+  void solve(int argc, char *argv[]) {
+    if (argc < 4) {
+      print_usage();
+      exit(1);
+    }
+    const std::string input_file_name = argv[1];
+    const std::string internal_file_name = argv[2];
+    const std::string output_file_name = argv[3];
+    int minimum_dislikes = argc == 5 ? stoi(argv[4]) : -1;
     input(input_file_name);
     // 内点全列挙
     input_internal_points(internal_file_name);
     preprocess();
+    if (minimum_dislikes >= 0) {
+      add_minimum_dislikes_constraints(minimum_dislikes);
+    }
 
     add_edge_constraints();
     add_node_constraints();
@@ -447,7 +467,7 @@ public:
     for (const auto &point : hole_internal_points) {
 
       if (hole_point_set.count(point) ||
-          (point.first % 1 == 0 && point.second % 1 == 0)) {
+          (point.first % 3 == 0 && point.second % 3 == 0)) {
         new_hole_internal_points.push_back(point);
       }
     }
@@ -462,21 +482,27 @@ public:
     os.close();
   }
 
-  void solve_zero_dislikes(const std::string &input_file_name,
-                           const std::string &internal_file_name,
-                           const std::string &output_file_name) {
-
+  void solve_zero_dislikes(int argc, char *argv[]) {
+    if (argc < 4) {
+      print_usage();
+      exit(1);
+    }
+    const std::string input_file_name = argv[1];
+    const std::string internal_file_name = argv[2];
+    const std::string output_file_name = argv[3];
+    int minimum_dislikes = argc == 5 ? stoi(argv[4]) : -1;
     input(input_file_name);
     // 内点全列挙
+
     input_internal_points(internal_file_name);
-    // reduce_internal_points(internal_file_name);
+    reduce_internal_points(internal_file_name);
 
     preprocess();
 
     add_edge_constraints();
     add_node_constraints();
     add_segment_conflict_constraints();
-    add_at_least_one_point_on_node_constraints();
+    add_minimum_dislikes_constraints(0);
     output_cnf(output_file_name);
   }
 
@@ -485,7 +511,8 @@ public:
   }
   void output_cnf(std::string output_file_name) {
     ofstream os(output_file_name, ios::out | ios::binary);
-    int clause_num = sat_clauses.size() + bin_clauses.size();
+    ll clause_num = sat_clauses.size() + bin_clauses.size();
+    assert(clause_num > 0);
     os << "p cnf " << variable_num() << " " << clause_num << "\n";
 
     for (const auto &bin : bin_clauses) {
@@ -545,17 +572,11 @@ public:
   vector<vector<int>> valid_point_indices;
   vector<vector<int>> invalid_point_indices;
 };
-void print_usage() {
-  std::cout << "usage: ./a.out <problem.txt> <internal.txt> <output.cnf>"
-            << std::endl;
-}
+
 int main(int argc, char *argv[]) {
   Solver s = Solver();
-  if (argc != 4) {
-    print_usage();
-    exit(1);
-  }
-  s.solve_zero_dislikes(argv[1], argv[2], argv[3]);
+
+  s.solve(argc, argv);
 
   return 0;
 }
