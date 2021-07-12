@@ -1,4 +1,4 @@
-export const n_problem = 88;
+export const n_problem = 132;
 
 const rate = 5;
 const pad = 20;

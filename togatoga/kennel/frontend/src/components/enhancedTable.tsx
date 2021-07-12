@@ -1,5 +1,4 @@
 import React from 'react';
-import clsx from 'clsx';
 import {
   createStyles,
   lighten,
@@ -47,6 +46,23 @@ function DownloadButton(props: { solution: Solution }) {
     </Button>
   );
 }
+
+function PlayButton(props: { solution: Solution }) {
+  const sol = props.solution;
+  const problemId = store.getState().selected + 1;
+  const data = {
+    "problemId": problemId,
+    "pose": sol.pose
+  }
+  const url = "https://iwashibowl.net/icfpc2021/gui/#" + encodeURIComponent(JSON.stringify(data));
+
+  return (
+    <Button href={url} target="_blank">
+      play
+    </Button>
+  );
+}
+
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -341,6 +357,9 @@ export default function EnhancedTable(prop: {
                       </TableCell>
                       <TableCell align="right">
                         {"use: " + row.pose.bonus?.toString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        <PlayButton solution={row} />
                       </TableCell>
                       <TableCell align="right">
                         <DownloadButton solution={row} />
